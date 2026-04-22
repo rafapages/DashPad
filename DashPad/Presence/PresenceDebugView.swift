@@ -211,12 +211,9 @@ private struct AVPreviewView: UIViewRepresentable {
             let angle = rotationAngle()
             if connection.isVideoRotationAngleSupported(angle) {
                 connection.videoRotationAngle = angle
-            } else if connection.isVideoOrientationSupported {
-                connection.videoOrientation = legacyOrientation()
             }
         }
 
-        // MARK: - Rotation angle calculation
         private func rotationAngle() -> CGFloat {
             switch currentInterfaceOrientation() {
             case .portrait:           return 90
@@ -227,20 +224,11 @@ private struct AVPreviewView: UIViewRepresentable {
             }
         }
 
-        private func legacyOrientation() -> AVCaptureVideoOrientation {
-            switch currentInterfaceOrientation() {
-            case .portrait:           return .portrait
-            case .portraitUpsideDown: return .portraitUpsideDown
-            case .landscapeRight:     return .landscapeRight
-            case .landscapeLeft:      return .landscapeLeft
-            default:                  return .portrait
-            }
-        }
-
         private func currentInterfaceOrientation() -> UIInterfaceOrientation {
-            UIApplication.shared.connectedScenes
-                .compactMap { $0 as? UIWindowScene }
-                .first?.interfaceOrientation ?? .portrait
+            guard let scene = UIApplication.shared.connectedScenes
+                .compactMap({ $0 as? UIWindowScene }).first
+            else { return .portrait }
+            return scene.effectiveGeometry.interfaceOrientation
         }
     }
 
@@ -291,7 +279,7 @@ private struct AVPreviewView: UIViewRepresentable {
                 label.foregroundColor = UIColor.green.cgColor
                 label.backgroundColor = UIColor.black.withAlphaComponent(0.65).cgColor
                 label.alignmentMode = .center
-                label.contentsScale = UIScreen.main.scale
+                label.contentsScale = traitCollection.displayScale
                 label.frame = CGRect(x: rect.minX, y: max(2, rect.minY - 18), width: 44, height: 16)
                 overlayLayer.addSublayer(label)
             }
