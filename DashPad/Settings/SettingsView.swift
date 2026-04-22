@@ -58,6 +58,8 @@ struct SettingsView: View {
     @State private var selectedCategory: SettingsCategory? = .dashboard
     @State private var showingAddFavourite = false
     @State private var newFavouriteURL = ""
+    @State private var debugModeEnabled = false
+    @State private var debugViewModel = PresenceDebugViewModel()
 
     var body: some View {
         let s = Bindable(settings)
@@ -89,6 +91,9 @@ struct SettingsView: View {
         }
         .containerBackground(.clear, for: .navigationSplitView)
         .presentationDetents([.medium, .large])
+        .onDisappear {
+            kioskManager.debugViewModel = nil
+        }
 //        .presentationBackground(.regularMaterial)
     }
 
@@ -223,6 +228,21 @@ struct SettingsView: View {
     private func presenceDetail(_ s: Bindable<AppSettings>) -> some View {
         Form {
             Section {
+                Toggle(isOn: $debugModeEnabled) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Debug Mode")
+                        Text("Shows live camera feed and pipeline events.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+
+            if debugModeEnabled {
+                PresenceDebugSections(viewModel: debugViewModel)
+            }
+
+            Section {
                 SliderRow(label: "Idle Timeout", value: s.idleTimeout, range: 10...300, step: 5, unit: "s")
             } footer: {
                 Text("How long the screen must be inactive before switching to the idle screen.")
@@ -242,6 +262,10 @@ struct SettingsView: View {
         .containerBackground(.clear, for: .navigation)
         .navigationTitle("Presence")
         .navigationBarTitleDisplayMode(.inline)
+        .animation(.default, value: debugModeEnabled)
+        .onChange(of: debugModeEnabled) { _, enabled in
+            kioskManager.debugViewModel = enabled ? debugViewModel : nil
+        }
     }
 
     // MARK: - Detail: Idle Screen

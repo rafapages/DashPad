@@ -7,8 +7,9 @@ import Vision
 class PresenceDetector: NSObject {
     /// Called on the main thread when face presence changes.
     var onFaceDetected: ((Bool) -> Void)?
+    var onFrameResult: (([VNFaceObservation]) -> Void)?
 
-    private var captureSession: AVCaptureSession?
+    var captureSession: AVCaptureSession?
     private var sampleInterval: Double = 2.0
     private var lastSampleTime: Date = .distantPast
     private let sessionQueue = DispatchQueue(label: "com.rafapages.dashpad.camera", qos: .utility)
@@ -64,8 +65,12 @@ class PresenceDetector: NSObject {
 
     private func detectFaces(in pixelBuffer: CVPixelBuffer) {
         let request = VNDetectFaceRectanglesRequest { [weak self] req, _ in
-            let detected = !(req.results?.isEmpty ?? true)
-            DispatchQueue.main.async { self?.onFaceDetected?(detected) }
+            let observations = req.results as? [VNFaceObservation] ?? []
+            let detected = !observations.isEmpty
+            DispatchQueue.main.async {
+                self?.onFaceDetected?(detected)
+                self?.onFrameResult?(observations)
+            }
         }
 
         let handler = VNImageRequestHandler(cvPixelBuffer: pixelBuffer, orientation: .leftMirrored)

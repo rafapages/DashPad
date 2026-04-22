@@ -1,3 +1,4 @@
+import AVFoundation
 import SwiftUI
 import UIKit
 
@@ -11,6 +12,14 @@ class KioskManager {
     var showingPINEntry = false
     var showingSettings = false
     var isKioskModeActive = false
+
+    var debugViewModel: PresenceDebugViewModel?
+    private(set) var currentLightLevel: Double = 0
+    private(set) var isCameraGated: Bool = true
+    private(set) var idleTimerStartDate: Date?
+
+    var captureSession: AVCaptureSession? { presenceDetector?.captureSession }
+    var presenceDetectorIsRunning: Bool { presenceDetector?.captureSession?.isRunning ?? false }
 
     private var settings: AppSettings?
     private var presenceDetector: PresenceDetector?
@@ -30,6 +39,10 @@ class KioskManager {
 
         presenceDetector?.onFaceDetected = { [weak self] detected in
             self?.handleFaceDetection(detected)
+        }
+
+        presenceDetector?.onFrameResult = { [weak self] observations in
+            self?.debugViewModel?.frameProcessed(observations: observations)
         }
 
         lightMonitor?.onBrightnessChanged = { [weak self] brightness in
@@ -82,13 +95,22 @@ class KioskManager {
 
     private func handleBrightnessChange(_ brightness: CGFloat) {
         guard let settings else { return }
-        if brightness < settings.lightThreshold {
-            // Dark room — stop camera, go idle
+        let level = Double(brightness)
+        let wasGated = isCameraGated
+        currentLightLevel = level
+        isCameraGated = level < settings.lightThreshold
+
+        if level < settings.lightThreshold {
             presenceDetector?.stop()
             transitionToIdle()
+            if !wasGated {
+                debugViewModel?.addEvent(String(format: "⚡  Camera OFF — below light threshold (%.2f)", level))
+            }
         } else {
-            // Lit room — run camera at configured rate
             presenceDetector?.start(sampleInterval: settings.cameraSampleRate)
+            if wasGated {
+                debugViewModel?.addEvent(String(format: "⚡  Camera ON — above light threshold (%.2f)", level))
+            }
         }
     }
 
@@ -107,6 +129,7 @@ class KioskManager {
 
     private func transitionToActive() {
         guard displayState != .active else { return }
+        debugViewModel?.addEvent("→  Active (face detected)")
         withAnimation(.easeInOut(duration: 0.4)) { displayState = .active }
         if let b = settings?.activeBrightness {
             mainScreen?.brightness = b
@@ -115,6 +138,9 @@ class KioskManager {
 
     private func transitionToIdle() {
         guard displayState != .idle else { return }
+        idleTimer?.invalidate()
+        idleTimer = nil
+        idleTimerStartDate = nil
         withAnimation(.easeInOut(duration: 0.6)) { displayState = .idle }
         if let b = settings?.idleBrightness {
             mainScreen?.brightness = b
@@ -124,7 +150,10 @@ class KioskManager {
     private func scheduleIdleTimer() {
         idleTimer?.invalidate()
         guard let timeout = settings?.idleTimeout else { return }
+        idleTimerStartDate = Date()
+        debugViewModel?.addEvent("↺  Idle timer reset")
         idleTimer = Timer.scheduledTimer(withTimeInterval: timeout, repeats: false) { [weak self] _ in
+            self?.debugViewModel?.addEvent("→  Idle – No Presence (timeout)")
             self?.transitionToIdle()
         }
     }
