@@ -216,6 +216,7 @@ private struct AVPreviewView: UIViewRepresentable {
             }
         }
 
+        // MARK: - Rotation angle calculation
         private func rotationAngle() -> CGFloat {
             switch currentInterfaceOrientation() {
             case .portrait:           return 90
