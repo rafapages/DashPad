@@ -17,8 +17,9 @@ struct ContentView: View {
             }
             .ignoresSafeArea()
 
-            // Invisible 88×88 pt corner tap target (top-right) for secret gesture
+            // Invisible 88×88 pt corner tap target (bottom-right) for secret gesture
             VStack {
+                Spacer()
                 HStack {
                     Spacer()
                     Color.clear
@@ -28,7 +29,6 @@ struct ContentView: View {
                             kioskManager.handleSecretTap()
                         }
                 }
-                Spacer()
             }
             .ignoresSafeArea()
 

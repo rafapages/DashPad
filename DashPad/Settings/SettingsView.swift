@@ -5,9 +5,9 @@ import SwiftUI
 
 private enum SettingsCategory: String, CaseIterable, Identifiable {
     case dashboard  = "Dashboard"
+    case idleScreen = "Idle Screen"
     case kioskLock  = "Kiosk Lock"
     case presence   = "Presence"
-    case idleScreen = "Idle Screen"
     case brightness = "Brightness"
     case injection  = "Injection"
 
@@ -56,6 +56,8 @@ struct SettingsView: View {
     @Environment(AppSettings.self) var settings
     @Environment(KioskManager.self) var kioskManager
     @State private var selectedCategory: SettingsCategory? = .dashboard
+    @State private var showingAddFavourite = false
+    @State private var newFavouriteURL = ""
 
     var body: some View {
         let s = Bindable(settings)
@@ -96,9 +98,9 @@ struct SettingsView: View {
     private func detailContent(for category: SettingsCategory, s: Bindable<AppSettings>) -> some View {
         switch category {
         case .dashboard:  dashboardDetail(s)
+        case .idleScreen: idleScreenDetail(s)
         case .kioskLock:  kioskLockDetail(s)
         case .presence:   presenceDetail(s)
-        case .idleScreen: idleScreenDetail(s)
         case .brightness: brightnessDetail(s)
         case .injection:  injectionDetail(s)
         }
@@ -126,11 +128,66 @@ struct SettingsView: View {
             } footer: {
                 Text("Separate multiple domains with commas, e.g. homeassistant.local, myserver.com")
             }
+
+            Section {
+                ForEach(settings.favouriteURLs, id: \.self) { url in
+                    HStack {
+                        Text(url)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                        Spacer()
+                        if settings.homeURL == url {
+                            Image(systemName: "house.fill")
+                                .foregroundStyle(.secondary)
+                                .imageScale(.small)
+                        }
+                    }
+                    .swipeActions(edge: .leading, allowsFullSwipe: true) {
+                        Button {
+                            settings.homeURL = url
+                        } label: {
+                            Label("Set as Home", systemImage: "house.fill")
+                        }
+                        .tint(.blue)
+                    }
+                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                        Button(role: .destructive) {
+                            settings.favouriteURLs.removeAll { $0 == url }
+                        } label: {
+                            Label("Delete", systemImage: "trash")
+                        }
+                    }
+                }
+                Button {
+                    newFavouriteURL = ""
+                    showingAddFavourite = true
+                } label: {
+                    Label("Add Favourite", systemImage: "plus")
+                }
+            } header: {
+                Text("Favourites")
+            } footer: {
+                Text("Swipe right to set as Home URL. Swipe left to delete.")
+            }
         }
         .scrollContentBackground(.hidden)
         .containerBackground(.clear, for: .navigation)
         .navigationTitle("Dashboard")
         .navigationBarTitleDisplayMode(.inline)
+        .alert("Add Favourite", isPresented: $showingAddFavourite) {
+            TextField("https://", text: $newFavouriteURL)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                .keyboardType(.URL)
+            Button("Add") {
+                let trimmed = newFavouriteURL.trimmingCharacters(in: .whitespaces)
+                guard !trimmed.isEmpty, !settings.favouriteURLs.contains(trimmed) else { return }
+                settings.favouriteURLs.append(trimmed)
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Enter the URL to save as a favourite.")
+        }
     }
 
     // MARK: - Detail: Kiosk Lock
@@ -151,7 +208,7 @@ struct SettingsView: View {
                     kioskManager.activateKioskMode()
                 }
             } footer: {
-                Text("Triple-tap the top-right corner to open the PIN prompt and exit kiosk mode.")
+                Text("Triple-tap the bottom-right corner to open the PIN prompt and exit kiosk mode.")
             }
         }
         .scrollContentBackground(.hidden)
@@ -167,8 +224,18 @@ struct SettingsView: View {
         Form {
             Section {
                 SliderRow(label: "Idle Timeout", value: s.idleTimeout, range: 10...300, step: 5, unit: "s")
+            } footer: {
+                Text("How long the screen must be inactive before switching to the idle screen.")
+            }
+            Section {
                 SliderRow(label: "Camera Sample Rate", value: s.cameraSampleRate, range: 1...10, step: 1, unit: "s")
+            } footer: {
+                Text("How often the front camera is sampled to detect presence. Lower values are more responsive but use more power.")
+            }
+            Section {
                 SliderRow(label: "Light Threshold", value: s.lightThreshold, range: 0...0.3, step: 0.01, unit: "%", displayMultiplier: 100)
+            } footer: {
+                Text("Minimum ambient light level required to consider someone present. Raise this if the screen wakes up too easily in dark rooms.")
             }
         }
         .scrollContentBackground(.hidden)

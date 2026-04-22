@@ -17,6 +17,7 @@ class AppSettings {
     var allowedDomains: String { didSet { save(allowedDomains, key: .allowedDomains) } }
     var customCSS: String { didSet { save(customCSS, key: .customCSS) } }
     var customJS: String { didSet { save(customJS, key: .customJS) } }
+    var favouriteURLs: [String] { didSet { save(favouriteURLs, key: .favouriteURLs) } }
 
     // PIN is a stored property backed by Keychain via didSet
     var exitPIN: String {
@@ -37,6 +38,7 @@ class AppSettings {
         allowedDomains = ud.string(forKey: Key.allowedDomains.rawValue) ?? ""
         customCSS = ud.string(forKey: Key.customCSS.rawValue) ?? ""
         customJS = ud.string(forKey: Key.customJS.rawValue) ?? ""
+        favouriteURLs = ud.stringArray(forKey: Key.favouriteURLs.rawValue) ?? []
         exitPIN = KeychainHelper.read(key: "com.rafapages.dashpad.exitPIN") ?? ""
     }
 
@@ -52,7 +54,7 @@ class AppSettings {
     private enum Key: String {
         case homeURL, idleTimeout, idleScreenType, idleCustomURL, clockStyle
         case idleBrightness, activeBrightness, lightThreshold, cameraSampleRate
-        case allowedDomains, customCSS, customJS
+        case allowedDomains, customCSS, customJS, favouriteURLs
     }
 
     private func save(_ value: some Any, key: Key) {
