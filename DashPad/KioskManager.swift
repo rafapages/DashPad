@@ -99,11 +99,17 @@ class KioskManager {
         }
     }
 
+    private var mainScreen: UIScreen? {
+        UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .first?.screen
+    }
+
     private func transitionToActive() {
         guard displayState != .active else { return }
         withAnimation(.easeInOut(duration: 0.4)) { displayState = .active }
         if let b = settings?.activeBrightness {
-            UIScreen.main.brightness = b
+            mainScreen?.brightness = b
         }
     }
 
@@ -111,7 +117,7 @@ class KioskManager {
         guard displayState != .idle else { return }
         withAnimation(.easeInOut(duration: 0.6)) { displayState = .idle }
         if let b = settings?.idleBrightness {
-            UIScreen.main.brightness = b
+            mainScreen?.brightness = b
         }
     }
 

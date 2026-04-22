@@ -38,15 +38,11 @@ struct ContentView: View {
                     .transition(.opacity.animation(.easeInOut(duration: 0.2)))
                     .zIndex(10)
             }
-
-            // Settings panel
-            if kioskManager.showingSettings {
-                SettingsView()
-                    .transition(.move(edge: .trailing).animation(.easeInOut(duration: 0.3)))
-                    .zIndex(20)
-            }
         }
         .ignoresSafeArea()
+        .sheet(isPresented: Bindable(kioskManager).showingSettings) {
+            SettingsView()
+        }
         .onAppear {
             kioskManager.start(settings: settings)
         }

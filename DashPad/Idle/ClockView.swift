@@ -1,3 +1,4 @@
+import Combine
 import SwiftUI
 
 struct ClockView: View {
@@ -66,12 +67,9 @@ private struct AnalogClockFace: View {
                     .rotationEffect(.degrees(Double(i) * 30))
             }
 
-            // Hour hand
-            ClockHand(angle: .degrees(hours * 30 - 90), length: 80, width: 4, color: .white)
-            // Minute hand
-            ClockHand(angle: .degrees(minutes * 6 - 90), length: 110, width: 3, color: .white)
-            // Second hand
-            ClockHand(angle: .degrees(seconds * 6 - 90), length: 120, width: 1.5, color: .red)
+            ClockHand(angle: .degrees(hours * 30), length: 80, width: 4, color: .white)
+            ClockHand(angle: .degrees(minutes * 6), length: 110, width: 3, color: .white)
+            ClockHand(angle: .degrees(seconds * 6), length: 120, width: 1.5, color: .red)
 
             Circle().fill(Color.white).frame(width: 10, height: 10)
         }
@@ -87,10 +85,9 @@ private struct ClockHand: View {
     var body: some View {
         Capsule()
             .fill(color)
-            .frame(width: length, height: width)
-            .offset(x: length / 2)
-            .rotationEffect(angle, anchor: .leading)
-            .frame(width: 0, height: 0)
+            .frame(width: width, height: length)
+            .offset(y: -length / 2)
+            .rotationEffect(angle)
     }
 }
 

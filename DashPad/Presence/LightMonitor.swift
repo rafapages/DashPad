@@ -19,8 +19,8 @@ class LightMonitor {
             forName: UIScreen.brightnessDidChangeNotification,
             object: nil,
             queue: .main
-        ) { [weak self] _ in
-            self?.report()
+        ) { [weak self] notification in
+            self?.report(screen: notification.object as? UIScreen)
         }
 
         // Poll every 60 s as a safety net for devices where the notification is unreliable
@@ -38,7 +38,11 @@ class LightMonitor {
         pollTimer = nil
     }
 
-    private func report() {
-        onBrightnessChanged?(UIScreen.main.brightness)
+    private func report(screen: UIScreen? = nil) {
+        let s = screen ?? UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .first?.screen
+        guard let brightness = s?.brightness else { return }
+        onBrightnessChanged?(brightness)
     }
 }
