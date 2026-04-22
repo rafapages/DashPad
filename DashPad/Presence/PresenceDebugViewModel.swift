@@ -11,24 +11,24 @@ final class PresenceDebugViewModel {
         let message: String
     }
 
-    var faceObservations: [VNFaceObservation] = []
+    var observations: [VNDetectedObjectObservation] = []
     var lastSampleDate: Date = .distantPast
     var logEntries: [LogEntry] = []
     var verboseFrameEvents: Bool = false
 
     private let maxEntries = 100
 
-    func frameProcessed(observations: [VNFaceObservation]) {
+    func frameProcessed(observations: [VNDetectedObjectObservation]) {
         lastSampleDate = Date()
-        faceObservations = observations
+        self.observations = observations
 
         guard verboseFrameEvents else { return }
         if observations.isEmpty {
-            addEvent("📷  Frame — 0 faces")
+            addEvent("📷  Frame — 0 detections")
         } else {
             let conf = String(format: "%.2f", observations[0].confidence)
             let suffix = observations.count > 1 ? " (+\(observations.count - 1))" : ""
-            addEvent("📷  Frame — \(observations.count) face\(observations.count == 1 ? "" : "s"), conf \(conf)\(suffix)")
+            addEvent("📷  Frame — \(observations.count) detection\(observations.count == 1 ? "" : "s"), conf \(conf)\(suffix)")
         }
     }
 

@@ -18,7 +18,7 @@ struct PresenceDebugSections: View {
             CameraDebugCard(
                 session: km.captureSession,
                 isCameraGated: km.isCameraGated,
-                faceObservations: viewModel.faceObservations
+                observations: viewModel.observations
             )
             .frame(maxWidth: .infinity)
             .frame(height: 240)
@@ -31,7 +31,7 @@ struct PresenceDebugSections: View {
             statusRow("Light Threshold", value: String(format: "%.2f", settings.lightThreshold))
             statusRow("Camera", value: cameraStatus)
             statusRow("Last Sample", value: lastSampleText)
-            statusRow("Faces Detected", value: "\(viewModel.faceObservations.count)")
+            statusRow("Detected", value: "\(viewModel.observations.count)")
             statusRow("Idle Timer", value: idleTimerText)
         }
 
@@ -106,16 +106,16 @@ struct PresenceDebugSections: View {
 private struct CameraDebugCard: View {
     let session: AVCaptureSession?
     let isCameraGated: Bool
-    let faceObservations: [VNFaceObservation]
+    let observations: [VNDetectedObjectObservation]
 
     var body: some View {
         ZStack {
             Color.black
 
             if !isCameraGated, let session {
-                // Face overlays are drawn in UIKit so layerRectConverted handles
+                // Overlays are drawn in UIKit so layerRectConverted handles
                 // all rotation/gravity math automatically.
-                AVPreviewView(session: session, faceObservations: faceObservations)
+                AVPreviewView(session: session, observations: observations)
 
                 // LIVE badge stays in SwiftUI — simple corner overlay.
                 VStack {
@@ -149,7 +149,7 @@ private struct CameraDebugCard: View {
 
 private struct AVPreviewView: UIViewRepresentable {
     let session: AVCaptureSession
-    let faceObservations: [VNFaceObservation]
+    let observations: [VNDetectedObjectObservation]
 
     func makeCoordinator() -> Coordinator { Coordinator() }
 
@@ -162,7 +162,7 @@ private struct AVPreviewView: UIViewRepresentable {
     }
 
     func updateUIView(_ uiView: _View, context: Context) {
-        uiView.updateFaceOverlays(faceObservations)
+        uiView.updateOverlays(observations)
     }
 
     static func dismantleUIView(_ uiView: _View, coordinator: Coordinator) {
@@ -252,7 +252,7 @@ private struct AVPreviewView: UIViewRepresentable {
             overlayLayer.frame = layer.bounds
         }
 
-        func updateFaceOverlays(_ observations: [VNFaceObservation]) {
+        func updateOverlays(_ observations: [VNDetectedObjectObservation]) {
             overlayLayer.sublayers?.forEach { $0.removeFromSuperlayer() }
 
             for obs in observations {

@@ -14,6 +14,7 @@ class AppSettings {
     var activeBrightness: Double { didSet { save(activeBrightness, key: .activeBrightness) } }
     var lightThreshold: Double { didSet { save(lightThreshold, key: .lightThreshold) } }
     var cameraSampleRate: Double { didSet { save(cameraSampleRate, key: .cameraSampleRate) } }
+    var detectionMode: DetectionMode { didSet { save(detectionMode.rawValue, key: .detectionMode) } }
     var allowedDomains: String { didSet { save(allowedDomains, key: .allowedDomains) } }
     var customCSS: String { didSet { save(customCSS, key: .customCSS) } }
     var customJS: String { didSet { save(customJS, key: .customJS) } }
@@ -35,6 +36,7 @@ class AppSettings {
         activeBrightness = ud.optionalDouble(forKey: Key.activeBrightness.rawValue) ?? 0.80
         lightThreshold = ud.optionalDouble(forKey: Key.lightThreshold.rawValue) ?? 0.05
         cameraSampleRate = ud.optionalDouble(forKey: Key.cameraSampleRate.rawValue) ?? 2.0
+        detectionMode = DetectionMode(rawValue: ud.string(forKey: Key.detectionMode.rawValue) ?? "") ?? .body
         allowedDomains = ud.string(forKey: Key.allowedDomains.rawValue) ?? ""
         customCSS = ud.string(forKey: Key.customCSS.rawValue) ?? ""
         customJS = ud.string(forKey: Key.customJS.rawValue) ?? ""
@@ -54,7 +56,7 @@ class AppSettings {
     private enum Key: String {
         case homeURL, idleTimeout, idleScreenType, idleCustomURL, clockStyle
         case idleBrightness, activeBrightness, lightThreshold, cameraSampleRate
-        case allowedDomains, customCSS, customJS, favouriteURLs
+        case allowedDomains, customCSS, customJS, favouriteURLs, detectionMode
     }
 
     private func save(_ value: some Any, key: Key) {
@@ -72,6 +74,17 @@ enum IdleScreenType: String, CaseIterable {
         case .clock: "Clock"
         case .blank: "Blank"
         case .customURL: "Custom URL"
+        }
+    }
+}
+
+enum DetectionMode: String, CaseIterable {
+    case body, face
+
+    var displayName: String {
+        switch self {
+        case .body: "Body"
+        case .face: "Face"
         }
     }
 }

@@ -2,22 +2,23 @@ import AVFoundation
 import Vision
 
 /// Captures frames from the front camera at a configurable interval and runs
-/// VNDetectFaceRectanglesRequest on each frame. All processing is on-device;
+/// a presence detection request on each frame. All processing is on-device;
 /// no frames are stored or transmitted.
 class PresenceDetector: NSObject {
-    /// Called on the main thread when face presence changes.
-    var onFaceDetected: ((Bool) -> Void)?
-    var onFrameResult: (([VNFaceObservation]) -> Void)?
+    var onPresenceDetected: ((Bool) -> Void)?
+    var onFrameResult: (([VNDetectedObjectObservation]) -> Void)?
 
     var captureSession: AVCaptureSession?
     private var sampleInterval: Double = 2.0
+    private var detectionMode: DetectionMode = .body
     private var lastSampleTime: Date = .distantPast
     private let sessionQueue = DispatchQueue(label: "com.rafapages.dashpad.camera", qos: .utility)
 
     // MARK: - Control
 
-    func start(sampleInterval: Double) {
+    func start(sampleInterval: Double, detectionMode: DetectionMode) {
         self.sampleInterval = sampleInterval
+        self.detectionMode = detectionMode
         guard captureSession == nil else { return }
 
         AVCaptureDevice.requestAccess(for: .video) { [weak self] granted in
@@ -30,8 +31,7 @@ class PresenceDetector: NSObject {
         let session = captureSession
         captureSession = nil
         sessionQueue.async { session?.stopRunning() }
-        // Report no presence when camera stops
-        DispatchQueue.main.async { self.onFaceDetected?(false) }
+        DispatchQueue.main.async { self.onPresenceDetected?(false) }
     }
 
     // MARK: - Session setup
@@ -61,17 +61,20 @@ class PresenceDetector: NSObject {
         sessionQueue.async { session.startRunning() }
     }
 
-    // MARK: - Face detection
+    // MARK: - Presence detection
 
-    private func detectFaces(in pixelBuffer: CVPixelBuffer) {
-        let request = VNDetectFaceRectanglesRequest { [weak self] req, _ in
-            let observations = req.results as? [VNFaceObservation] ?? []
-            let detected = !observations.isEmpty
+    private func detectPresence(in pixelBuffer: CVPixelBuffer) {
+        let completion: VNRequestCompletionHandler = { [weak self] req, _ in
+            let observations = req.results as? [VNDetectedObjectObservation] ?? []
             DispatchQueue.main.async {
-                self?.onFaceDetected?(detected)
+                self?.onPresenceDetected?(!observations.isEmpty)
                 self?.onFrameResult?(observations)
             }
         }
+
+        let request: VNRequest = detectionMode == .face
+            ? VNDetectFaceRectanglesRequest(completionHandler: completion)
+            : VNDetectHumanRectanglesRequest(completionHandler: completion)
 
         let handler = VNImageRequestHandler(cvPixelBuffer: pixelBuffer, orientation: .leftMirrored)
         try? handler.perform([request])
@@ -91,6 +94,6 @@ extension PresenceDetector: AVCaptureVideoDataOutputSampleBufferDelegate {
         lastSampleTime = now
 
         guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
-        detectFaces(in: pixelBuffer)
+        detectPresence(in: pixelBuffer)
     }
 }

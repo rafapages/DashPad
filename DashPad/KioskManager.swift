@@ -37,8 +37,8 @@ class KioskManager {
         presenceDetector = PresenceDetector()
         lightMonitor = LightMonitor()
 
-        presenceDetector?.onFaceDetected = { [weak self] detected in
-            self?.handleFaceDetection(detected)
+        presenceDetector?.onPresenceDetected = { [weak self] detected in
+            self?.handlePresenceDetection(detected)
         }
 
         presenceDetector?.onFrameResult = { [weak self] observations in
@@ -107,14 +107,14 @@ class KioskManager {
                 debugViewModel?.addEvent(String(format: "⚡  Camera OFF — below light threshold (%.2f)", level))
             }
         } else {
-            presenceDetector?.start(sampleInterval: settings.cameraSampleRate)
+            presenceDetector?.start(sampleInterval: settings.cameraSampleRate, detectionMode: settings.detectionMode)
             if wasGated {
                 debugViewModel?.addEvent(String(format: "⚡  Camera ON — above light threshold (%.2f)", level))
             }
         }
     }
 
-    private func handleFaceDetection(_ detected: Bool) {
+    private func handlePresenceDetection(_ detected: Bool) {
         if detected {
             transitionToActive()
             scheduleIdleTimer()

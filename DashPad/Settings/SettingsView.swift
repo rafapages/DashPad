@@ -243,6 +243,15 @@ struct SettingsView: View {
             }
 
             Section {
+                Picker("Detection Mode", selection: s.detectionMode) {
+                    ForEach(DetectionMode.allCases, id: \.self) {
+                        Text($0.displayName).tag($0)
+                    }
+                }
+            } footer: {
+                Text("Body detects people by silhouette — works for side profiles and people facing away. Face requires a visible face and is less likely to trigger on background movement.")
+            }
+            Section {
                 SliderRow(label: "Idle Timeout", value: s.idleTimeout, range: 10...300, step: 5, unit: "s")
             } footer: {
                 Text("How long the screen must be inactive before switching to the idle screen.")
