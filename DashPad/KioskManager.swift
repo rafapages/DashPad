@@ -13,7 +13,7 @@ enum PresenceState {
 
 @Observable
 class KioskManager {
-    var displayState: DisplayState = .idle
+    var displayState: DisplayState = .active
     var presenceState: PresenceState = .idle
     var showingPINEntry = false
     var showingSettings = false
@@ -121,7 +121,7 @@ class KioskManager {
         presenceDetector?.onCaptureResult = { [weak self] result in
             self?.handleCaptureResult(result)
         }
-        enterIdle()
+        enterActive(event: "🚀  App launched")
     }
 
     // MARK: - State machine
