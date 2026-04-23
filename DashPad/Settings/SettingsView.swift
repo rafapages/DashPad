@@ -244,50 +244,74 @@ struct SettingsView: View {
     private func presenceDetail(_ s: Bindable<AppSettings>) -> some View {
         Form {
             Section {
-                Toggle(isOn: $debugModeEnabled) {
+                Toggle(isOn: s.presenceEnabled) {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Debug Mode")
-                        Text("Shows live camera feed and pipeline events.")
+                        Text("Enable Presence Detection")
+                        Text("Uses the front camera to detect when someone is present. When off, the dashboard stays active at all times.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
                 }
             }
 
-            if debugModeEnabled {
-                PresenceDebugSections(viewModel: debugViewModel)
-            }
-
-            Section {
-                Picker("Detection Mode", selection: s.detectionMode) {
-                    ForEach(DetectionMode.allCases, id: \.self) {
-                        Text($0.displayName).tag($0)
+            if settings.presenceEnabled {
+                Section {
+                    Toggle(isOn: $debugModeEnabled) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Debug Mode")
+                            Text("Shows the last captured photo and pipeline events.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
                     }
                 }
-            } footer: {
-                Text("Body detects people by silhouette — works for side profiles and people facing away. Face requires a visible face and is less likely to trigger on background movement.")
-            }
-            Section {
-                SliderRow(label: "Idle Timeout", value: s.idleTimeout, range: 10...300, step: 5, unit: "s")
-            } footer: {
-                Text("How long the screen must be inactive before switching to the idle screen.")
-            }
-            Section {
-                SliderRow(label: "Camera Sample Rate", value: s.cameraSampleRate, range: 1...10, step: 1, unit: "s")
-            } footer: {
-                Text("How often the front camera is sampled to detect presence. Lower values are more responsive but use more power.")
-            }
-            Section {
-                SliderRow(label: "Light Threshold", value: s.lightThreshold, range: 0...0.3, step: 0.01, unit: "%", displayMultiplier: 100)
-            } footer: {
-                Text("Minimum ambient light level required to consider someone present. Raise this if the screen wakes up too easily in dark rooms.")
+
+                if debugModeEnabled {
+                    PresenceDebugSections(viewModel: debugViewModel)
+                }
+
+                Section {
+                    Picker("Detection Mode", selection: s.detectionMode) {
+                        ForEach(DetectionMode.allCases, id: \.self) {
+                            Text($0.displayName).tag($0)
+                        }
+                    }
+                } footer: {
+                    Text("Body detects people by silhouette — works for side profiles and people facing away. Face requires a visible face and is less likely to trigger on background movement.")
+                }
+                Section {
+                    SliderRow(label: "Day Sample Rate", value: s.cameraSampleRate, range: 1...30, step: 1, unit: "s")
+                    SliderRow(label: "Night Sample Rate", value: s.nightSampleRate, range: 10...300, step: 5, unit: "s")
+                } footer: {
+                    Text("How often the camera fires when the room is lit (day) vs dark (night). A single photo is taken each time — the camera is active for ~3 seconds per sample.")
+                }
+                Section {
+                    SliderRow(label: "Presence Recheck", value: s.presenceRecheckInterval, range: 5...120, step: 5, unit: "s")
+                } footer: {
+                    Text("How long after detecting someone before the camera rechecks to confirm they are still there.")
+                }
+                Section {
+                    SliderRow(label: "Idle Timeout", value: s.idleTimeout, range: 10...300, step: 5, unit: "s")
+                } footer: {
+                    Text("How long with no detection before the idle screen appears. During this countdown the camera continues sampling at the day rate.")
+                }
+                Section {
+                    SliderRow(label: "Dark Threshold", value: s.darkLuminanceThreshold, range: 0...80, step: 1, unit: "")
+                } footer: {
+                    Text("Average frame luminance (0 – 255) below which the room is considered dark. Dark frames skip the detector and reschedule at the night rate.")
+                }
             }
         }
         .scrollContentBackground(.hidden)
         .containerBackground(.clear, for: .navigation)
         .navigationTitle("Presence")
         .navigationBarTitleDisplayMode(.inline)
+        .animation(.default, value: settings.presenceEnabled)
         .animation(.default, value: debugModeEnabled)
+        .onChange(of: settings.presenceEnabled) { _, enabled in
+            if !enabled { debugModeEnabled = false }
+            kioskManager.setPresenceEnabled(enabled)
+        }
         .onChange(of: debugModeEnabled) { _, enabled in
             kioskManager.debugViewModel = enabled ? debugViewModel : nil
         }

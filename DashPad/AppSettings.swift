@@ -12,8 +12,11 @@ class AppSettings {
     var clockStyle: ClockStyle { didSet { save(clockStyle.rawValue, key: .clockStyle) } }
     var idleBrightness: Double { didSet { save(idleBrightness, key: .idleBrightness) } }
     var activeBrightness: Double { didSet { save(activeBrightness, key: .activeBrightness) } }
-    var lightThreshold: Double { didSet { save(lightThreshold, key: .lightThreshold) } }
+    var presenceEnabled: Bool { didSet { save(presenceEnabled, key: .presenceEnabled) } }
     var cameraSampleRate: Double { didSet { save(cameraSampleRate, key: .cameraSampleRate) } }
+    var nightSampleRate: Double { didSet { save(nightSampleRate, key: .nightSampleRate) } }
+    var presenceRecheckInterval: Double { didSet { save(presenceRecheckInterval, key: .presenceRecheckInterval) } }
+    var darkLuminanceThreshold: Double { didSet { save(darkLuminanceThreshold, key: .darkLuminanceThreshold) } }
     var detectionMode: DetectionMode { didSet { save(detectionMode.rawValue, key: .detectionMode) } }
     var allowedDomains: String { didSet { save(allowedDomains, key: .allowedDomains) } }
     var customCSS: String { didSet { save(customCSS, key: .customCSS) } }
@@ -34,8 +37,11 @@ class AppSettings {
         clockStyle = ClockStyle(rawValue: ud.string(forKey: Key.clockStyle.rawValue) ?? "") ?? .digital
         idleBrightness = ud.optionalDouble(forKey: Key.idleBrightness.rawValue) ?? 0.15
         activeBrightness = ud.optionalDouble(forKey: Key.activeBrightness.rawValue) ?? 0.80
-        lightThreshold = ud.optionalDouble(forKey: Key.lightThreshold.rawValue) ?? 0.05
-        cameraSampleRate = ud.optionalDouble(forKey: Key.cameraSampleRate.rawValue) ?? 2.0
+        presenceEnabled = ud.object(forKey: Key.presenceEnabled.rawValue) as? Bool ?? true
+        cameraSampleRate = ud.optionalDouble(forKey: Key.cameraSampleRate.rawValue) ?? 5.0
+        nightSampleRate = ud.optionalDouble(forKey: Key.nightSampleRate.rawValue) ?? 60.0
+        presenceRecheckInterval = ud.optionalDouble(forKey: Key.presenceRecheckInterval.rawValue) ?? 30.0
+        darkLuminanceThreshold = ud.optionalDouble(forKey: Key.darkLuminanceThreshold.rawValue) ?? 20.0
         detectionMode = DetectionMode(rawValue: ud.string(forKey: Key.detectionMode.rawValue) ?? "") ?? .body
         allowedDomains = ud.string(forKey: Key.allowedDomains.rawValue) ?? ""
         customCSS = ud.string(forKey: Key.customCSS.rawValue) ?? ""
@@ -55,7 +61,9 @@ class AppSettings {
 
     private enum Key: String {
         case homeURL, idleTimeout, idleScreenType, idleCustomURL, clockStyle
-        case idleBrightness, activeBrightness, lightThreshold, cameraSampleRate
+        case presenceEnabled
+        case idleBrightness, activeBrightness, cameraSampleRate, nightSampleRate
+        case presenceRecheckInterval, darkLuminanceThreshold
         case allowedDomains, customCSS, customJS, favouriteURLs, detectionMode
     }
 

@@ -7,25 +7,29 @@ enum DisplayState {
     case active, idle
 }
 
+enum PresenceState {
+    case idle, sampling, active, rechecking, countingDown
+}
+
 @Observable
 class KioskManager {
     var displayState: DisplayState = .idle
+    var presenceState: PresenceState = .idle
     var showingPINEntry = false
     var showingSettings = false
     var isKioskModeActive = false
 
     var debugViewModel: PresenceDebugViewModel?
-    private(set) var currentLightLevel: Double = 0
-    private(set) var isCameraGated: Bool = true
-    private(set) var idleTimerStartDate: Date?
-
-    var captureSession: AVCaptureSession? { presenceDetector?.captureSession }
-    var presenceDetectorIsRunning: Bool { presenceDetector?.captureSession?.isRunning ?? false }
+    private(set) var lastLuminance: Double = 0
+    // Set when entering .active (recheck timer started) or .countingDown (countdown started).
+    private(set) var stateTimerStartDate: Date?
 
     private var settings: AppSettings?
     private var presenceDetector: PresenceDetector?
-    private var lightMonitor: LightMonitor?
-    private var idleTimer: Timer?
+    private var sampleTimer: Timer?
+    private var recheckTimer: Timer?
+    private var countdownTimer: Timer?
+    private var lastFrameWasDark = false
     private var started = false
 
     // MARK: - Lifecycle
@@ -35,22 +39,12 @@ class KioskManager {
         started = true
         self.settings = settings
 
-        presenceDetector = PresenceDetector()
-        lightMonitor = LightMonitor()
-
-        presenceDetector?.onPresenceDetected = { [weak self] detected in
-            self?.handlePresenceDetection(detected)
+        guard settings.presenceEnabled else {
+            transitionDisplay(to: .active)
+            return
         }
 
-        presenceDetector?.onFrameResult = { [weak self] observations in
-            self?.debugViewModel?.frameProcessed(observations: observations)
-        }
-
-        lightMonitor?.onBrightnessChanged = { [weak self] brightness in
-            self?.handleBrightnessChange(brightness)
-        }
-
-        lightMonitor?.start()
+        startPresencePipeline()
     }
 
     // MARK: - Secret gesture → PIN prompt
@@ -78,10 +72,8 @@ class KioskManager {
         }
     }
 
-    /// Length of the stored PIN (0 if unset). Used by the overlay for auto-validation timing.
     var storedPINLength: Int { settings?.exitPIN.count ?? 0 }
 
-    /// Returns true if PIN matches (or no PIN is set).
     func validatePIN(_ entered: String) -> Bool {
         guard let settings else { return false }
         let stored = settings.exitPIN
@@ -110,70 +102,195 @@ class KioskManager {
         }
     }
 
-    // MARK: - Presence pipeline
+    // MARK: - Presence on/off
 
-    private func handleBrightnessChange(_ brightness: CGFloat) {
-        guard let settings else { return }
-        let level = Double(brightness)
-        let wasGated = isCameraGated
-        currentLightLevel = level
-        isCameraGated = level < settings.lightThreshold
-
-        if level < settings.lightThreshold {
-            presenceDetector?.stop()
-            transitionToIdle()
-            if !wasGated {
-                debugViewModel?.addEvent(String(format: "⚡  Camera OFF — below light threshold (%.2f)", level))
-            }
+    func setPresenceEnabled(_ enabled: Bool) {
+        if enabled {
+            guard presenceDetector == nil else { return }
+            startPresencePipeline()
         } else {
-            presenceDetector?.start(sampleInterval: settings.cameraSampleRate, detectionMode: settings.detectionMode)
-            if wasGated {
-                debugViewModel?.addEvent(String(format: "⚡  Camera ON — above light threshold (%.2f)", level))
-            }
+            cancelAllTimers()
+            presenceDetector = nil
+            presenceState = .idle
+            transitionDisplay(to: .active)
         }
     }
 
-    private func handlePresenceDetection(_ detected: Bool) {
-        if detected {
-            transitionToActive()
-            scheduleIdleTimer()
+    private func startPresencePipeline() {
+        presenceDetector = PresenceDetector()
+        presenceDetector?.onCaptureResult = { [weak self] result in
+            self?.handleCaptureResult(result)
         }
+        enterIdle()
+    }
+
+    // MARK: - State machine
+
+    private func enterIdle() {
+        cancelAllTimers()
+        presenceState = .idle
+        stateTimerStartDate = nil
+        transitionDisplay(to: .idle)
+
+        let rate = lastFrameWasDark
+            ? (settings?.nightSampleRate ?? 60)
+            : (settings?.cameraSampleRate ?? 5)
+
+        sampleTimer = Timer.scheduledTimer(withTimeInterval: rate, repeats: false) { [weak self] _ in
+            self?.sampleTimerFired()
+        }
+    }
+
+    private func sampleTimerFired() {
+        switch presenceState {
+        case .idle:
+            presenceState = .sampling
+            debugViewModel?.addEvent("📷  Sampling… (warming up)")
+            capture()
+        case .countingDown:
+            debugViewModel?.addEvent("📷  Sampling… (warming up)")
+            capture()
+        default:
+            break
+        }
+    }
+
+    private func enterActive(event: String? = nil) {
+        cancelAllTimers()
+        presenceState = .active
+        stateTimerStartDate = Date()
+        transitionDisplay(to: .active)
+
+        let interval = settings?.presenceRecheckInterval ?? 30
+        let message = event ?? "✅  Still present"
+        debugViewModel?.addEvent(String(format: "%@ — recheck in %.0fs", message, interval))
+
+        recheckTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: false) { [weak self] _ in
+            self?.recheckTimerFired()
+        }
+    }
+
+    private func recheckTimerFired() {
+        guard presenceState == .active else { return }
+        presenceState = .rechecking
+        debugViewModel?.addEvent("🔍  Rechecking… (warming up)")
+        capture()
+    }
+
+    private func enterCountingDown() {
+        cancelAllTimers()
+        presenceState = .countingDown
+        stateTimerStartDate = Date()
+        // displayState stays .active — dashboard remains visible during the countdown.
+
+        let timeout = settings?.idleTimeout ?? 60
+        countdownTimer = Timer.scheduledTimer(withTimeInterval: timeout, repeats: false) { [weak self] _ in
+            self?.countdownTimerFired()
+        }
+
+        scheduleSampleTimerForCountdown()
+    }
+
+    private func scheduleSampleTimerForCountdown() {
+        let rate = settings?.cameraSampleRate ?? 5
+        sampleTimer = Timer.scheduledTimer(withTimeInterval: rate, repeats: false) { [weak self] _ in
+            self?.sampleTimerFired()
+        }
+    }
+
+    private func countdownTimerFired() {
+        guard presenceState == .countingDown else { return }
+        let rate = lastFrameWasDark
+            ? (settings?.nightSampleRate ?? 60)
+            : (settings?.cameraSampleRate ?? 5)
+        debugViewModel?.addEvent(String(format: "💤  Timeout — next sample in %.0fs", rate))
+        lastFrameWasDark = false
+        enterIdle()
+    }
+
+    // MARK: - Capture + result handling
+
+    private func capture() {
+        guard let settings else { return }
+        presenceDetector?.captureOnce(
+            detectionMode: settings.detectionMode,
+            darkLuminanceThreshold: settings.darkLuminanceThreshold
+        )
+    }
+
+    private func handleCaptureResult(_ result: CaptureResult) {
+        lastLuminance = result.luminance
+        let isDark = result.luminance < (settings?.darkLuminanceThreshold ?? 20)
+        lastFrameWasDark = isDark
+        let personDetected = !result.observations.isEmpty
+
+        debugViewModel?.frameProcessed(
+            luminance: result.luminance,
+            observations: result.observations,
+            image: result.debugImage
+        )
+
+        switch presenceState {
+        case .sampling:
+            if isDark {
+                let nightRate = settings?.nightSampleRate ?? 60
+                debugViewModel?.addEvent(String(format: "🌙  Dark (lum %.0f) — next sample in %.0fs (night rate)", result.luminance, nightRate))
+                enterIdle()
+            } else if personDetected {
+                let mode = settings?.detectionMode.displayName ?? "body"
+                enterActive(event: "✅  Active (\(mode) detected)")
+            } else {
+                let dayRate = settings?.cameraSampleRate ?? 5
+                debugViewModel?.addEvent(String(format: "📷  No detection (lum %.0f) — next sample in %.0fs", result.luminance, dayRate))
+                enterIdle()
+            }
+
+        case .rechecking:
+            if personDetected {
+                enterActive()
+            } else {
+                let timeout = settings?.idleTimeout ?? 60
+                let reason = isDark ? "dark" : "no presence"
+                debugViewModel?.addEvent(String(format: "⏱  %@ (lum %.0f) — %.0fs countdown started", reason, result.luminance, timeout))
+                enterCountingDown()
+            }
+
+        case .countingDown:
+            if isDark {
+                debugViewModel?.addEvent(String(format: "🌙  Dark (lum %.0f) during countdown — going idle", result.luminance))
+                enterIdle()
+            } else if personDetected {
+                enterActive(event: "✅  Active (returned)")
+            } else {
+                let elapsed = stateTimerStartDate.map { Date().timeIntervalSince($0) } ?? 0
+                let remaining = max(0, (settings?.idleTimeout ?? 60) - elapsed)
+                debugViewModel?.addEvent(String(format: "⏱  No detection (lum %.0f) — %.0fs remaining", result.luminance, remaining))
+                scheduleSampleTimerForCountdown()
+            }
+
+        default:
+            break
+        }
+    }
+
+    // MARK: - Helpers
+
+    private func cancelAllTimers() {
+        sampleTimer?.invalidate();    sampleTimer = nil
+        recheckTimer?.invalidate();   recheckTimer = nil
+        countdownTimer?.invalidate(); countdownTimer = nil
+    }
+
+    private func transitionDisplay(to state: DisplayState) {
+        guard displayState != state else { return }
+        withAnimation(.easeInOut(duration: state == .active ? 0.4 : 0.6)) { displayState = state }
+        let brightness = state == .active ? settings?.activeBrightness : settings?.idleBrightness
+        if let b = brightness { mainScreen?.brightness = b }
     }
 
     private var mainScreen: UIScreen? {
         UIApplication.shared.connectedScenes
             .compactMap { $0 as? UIWindowScene }
             .first?.screen
-    }
-
-    private func transitionToActive() {
-        guard displayState != .active else { return }
-        debugViewModel?.addEvent("→  Active (face detected)")
-        withAnimation(.easeInOut(duration: 0.4)) { displayState = .active }
-        if let b = settings?.activeBrightness {
-            mainScreen?.brightness = b
-        }
-    }
-
-    private func transitionToIdle() {
-        guard displayState != .idle else { return }
-        idleTimer?.invalidate()
-        idleTimer = nil
-        idleTimerStartDate = nil
-        withAnimation(.easeInOut(duration: 0.6)) { displayState = .idle }
-        if let b = settings?.idleBrightness {
-            mainScreen?.brightness = b
-        }
-    }
-
-    private func scheduleIdleTimer() {
-        idleTimer?.invalidate()
-        guard let timeout = settings?.idleTimeout else { return }
-        idleTimerStartDate = Date()
-        debugViewModel?.addEvent("↺  Idle timer reset")
-        idleTimer = Timer.scheduledTimer(withTimeInterval: timeout, repeats: false) { [weak self] _ in
-            self?.debugViewModel?.addEvent("→  Idle – No Presence (timeout)")
-            self?.transitionToIdle()
-        }
     }
 }

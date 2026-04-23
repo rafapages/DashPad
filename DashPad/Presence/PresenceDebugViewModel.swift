@@ -1,4 +1,5 @@
 import Foundation
+import UIKit
 import Vision
 import Observation
 
@@ -13,22 +14,30 @@ final class PresenceDebugViewModel {
 
     var observations: [VNDetectedObjectObservation] = []
     var lastSampleDate: Date = .distantPast
+    var lastLuminance: Double = 0
+    var lastPhoto: UIImage?
     var logEntries: [LogEntry] = []
     var verboseFrameEvents: Bool = false
 
     private let maxEntries = 100
 
-    func frameProcessed(observations: [VNDetectedObjectObservation]) {
+    func frameProcessed(luminance: Double, observations: [VNDetectedObjectObservation], image: UIImage?) {
         lastSampleDate = Date()
+        lastLuminance = luminance
         self.observations = observations
+        lastPhoto = image
 
         guard verboseFrameEvents else { return }
         if observations.isEmpty {
-            addEvent("📷  Frame — 0 detections")
+            addEvent(String(format: "📷  Frame — 0 detections, lum %.0f", luminance))
         } else {
             let conf = String(format: "%.2f", observations[0].confidence)
             let suffix = observations.count > 1 ? " (+\(observations.count - 1))" : ""
-            addEvent("📷  Frame — \(observations.count) detection\(observations.count == 1 ? "" : "s"), conf \(conf)\(suffix)")
+            addEvent(String(format: "📷  Frame — %d detection%@, conf %@, lum %.0f",
+                            observations.count,
+                            observations.count == 1 ? "" : "s",
+                            conf + suffix,
+                            luminance))
         }
     }
 
