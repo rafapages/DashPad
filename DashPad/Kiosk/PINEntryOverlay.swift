@@ -30,6 +30,13 @@ struct PINEntryOverlay: View {
                     onDelete: deleteDigit,
                     onCancel: { kioskManager.showingPINEntry = false }
                 )
+
+                Button("Forgot PIN?") {
+                    kioskManager.recoverWithBiometrics()
+                }
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .buttonStyle(.plain)
             }
         }
         .preferredColorScheme(.dark)
@@ -86,7 +93,7 @@ struct PINEntryOverlay: View {
 
 // MARK: - Numeric pad
 
-private struct NumPadView: View {
+struct NumPadView: View {
     let onDigit: (String) -> Void
     let onDelete: () -> Void
     let onCancel: () -> Void
@@ -109,7 +116,7 @@ private struct NumPadView: View {
 
 // MARK: - Individual key
 
-private struct PadKey: View {
+struct PadKey: View {
     let key: String
     let onDigit: (String) -> Void
     let onDelete: () -> Void
@@ -153,4 +160,97 @@ private struct PadKey: View {
 #Preview {
     PINEntryOverlay()
         .environment(KioskManager())
+}
+
+// MARK: - PIN Setup (two-phase confirmation sheet)
+
+struct PINSetupView: View {
+    @Binding var savedPIN: String
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var entered = ""
+    @State private var firstEntry = ""
+    @State private var isConfirming = false
+    @State private var showError = false
+    @State private var shakeAmount: CGFloat = 0
+
+    var body: some View {
+        ZStack {
+            Color.black.ignoresSafeArea()
+
+            VStack(spacing: 48) {
+                VStack(spacing: 16) {
+                    Text(isConfirming ? "Confirm PIN" : "Choose a PIN")
+                        .font(.title2.weight(.semibold))
+                        .animation(.default, value: isConfirming)
+
+                    dotRow
+                        .offset(x: shakeAmount)
+
+                    Text(showError ? "PINs don't match — try again" : " ")
+                        .font(.callout)
+                        .foregroundStyle(.red)
+                        .animation(.default, value: showError)
+                }
+
+                NumPadView(
+                    onDigit: appendDigit,
+                    onDelete: deleteDigit,
+                    onCancel: { dismiss() }
+                )
+            }
+        }
+        .preferredColorScheme(.dark)
+    }
+
+    private var dotRow: some View {
+        HStack(spacing: 18) {
+            ForEach(0..<4, id: \.self) { i in
+                Circle()
+                    .fill(i < entered.count ? Color.primary : Color.primary.opacity(0.2))
+                    .frame(width: 14, height: 14)
+                    .animation(.spring(duration: 0.2), value: entered.count)
+            }
+        }
+    }
+
+    private func appendDigit(_ digit: String) {
+        guard entered.count < 4 else { return }
+        entered += digit
+        showError = false
+        if entered.count == 4 { submit() }
+    }
+
+    private func deleteDigit() {
+        guard !entered.isEmpty else { return }
+        entered.removeLast()
+        showError = false
+    }
+
+    private func submit() {
+        if isConfirming {
+            if entered == firstEntry {
+                savedPIN = entered
+                dismiss()
+            } else {
+                withAnimation(.interpolatingSpring(stiffness: 600, damping: 10)) { shakeAmount = 12 }
+                withAnimation(.interpolatingSpring(stiffness: 600, damping: 10).delay(0.1)) { shakeAmount = 0 }
+                showError = true
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+                    entered = ""
+                    firstEntry = ""
+                    isConfirming = false
+                    showError = false
+                }
+            }
+        } else {
+            firstEntry = entered
+            entered = ""
+            isConfirming = true
+        }
+    }
+}
+
+#Preview("PIN Setup") {
+    PINSetupView(savedPIN: .constant(""))
 }

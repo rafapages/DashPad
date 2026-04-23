@@ -1,4 +1,5 @@
 import AVFoundation
+import LocalAuthentication
 import SwiftUI
 import UIKit
 
@@ -56,7 +57,25 @@ class KioskManager {
 
     func handleSecretTap() {
         guard !showingPINEntry, !showingSettings else { return }
-        showingPINEntry = true
+        if storedPINLength == 0 {
+            showingSettings = true
+        } else {
+            showingPINEntry = true
+        }
+    }
+
+    func recoverWithBiometrics() {
+        let context = LAContext()
+        var error: NSError?
+        guard context.canEvaluatePolicy(.deviceOwnerAuthentication, error: &error) else { return }
+        context.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: "Access DashPad settings") { [weak self] success, _ in
+            DispatchQueue.main.async {
+                guard let self, success else { return }
+                self.showingPINEntry = false
+                if self.isKioskModeActive { self.deactivateGuidedAccess() }
+                self.showingSettings = true
+            }
+        }
     }
 
     /// Length of the stored PIN (0 if unset). Used by the overlay for auto-validation timing.

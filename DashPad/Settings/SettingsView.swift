@@ -58,6 +58,7 @@ struct SettingsView: View {
     @State private var selectedCategory: SettingsCategory? = .dashboard
     @State private var showingAddFavourite = false
     @State private var newFavouriteURL = ""
+    @State private var showingPINSetup = false
     @State private var debugModeEnabled = false
     @State private var debugViewModel = PresenceDebugViewModel()
 
@@ -201,11 +202,23 @@ struct SettingsView: View {
     private func kioskLockDetail(_ s: Bindable<AppSettings>) -> some View {
         Form {
             Section {
-                LabeledContent("Exit PIN") {
-                    SecureField("4–6 digits", text: s.exitPIN)
-                        .keyboardType(.numberPad)
-                        .multilineTextAlignment(.trailing)
+                Toggle("Require PIN", isOn: Binding(
+                    get: { !settings.exitPIN.isEmpty },
+                    set: { enabled in
+                        if enabled {
+                            showingPINSetup = true
+                        } else {
+                            settings.exitPIN = ""
+                        }
+                    }
+                ))
+                if !settings.exitPIN.isEmpty {
+                    Button("Change PIN") {
+                        showingPINSetup = true
+                    }
                 }
+            } footer: {
+                Text("When enabled, triple-tapping the bottom-right corner will ask for a PIN before opening Settings. Use Face ID or your device passcode if you forget it.")
             }
             Section {
                 Button("Enter Kiosk Mode") {
@@ -213,13 +226,16 @@ struct SettingsView: View {
                     kioskManager.activateKioskMode()
                 }
             } footer: {
-                Text("Triple-tap the bottom-right corner to open the PIN prompt and exit kiosk mode.")
+                Text("Locks the device to this app using Guided Access.")
             }
         }
         .scrollContentBackground(.hidden)
         .containerBackground(.clear, for: .navigation)
         .navigationTitle("Kiosk Lock")
         .navigationBarTitleDisplayMode(.inline)
+        .sheet(isPresented: $showingPINSetup) {
+            PINSetupView(savedPIN: s.exitPIN)
+        }
     }
 
     // MARK: - Detail: Presence
