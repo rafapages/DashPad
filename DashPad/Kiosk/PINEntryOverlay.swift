@@ -114,6 +114,30 @@ struct NumPadView: View {
     }
 }
 
+// MARK: - Keypad button style (glass on iOS 26+, material circle on older)
+
+private struct KeypadButtonModifier: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(iOS 26, *) {
+            content
+                .buttonStyle(.glass)
+                .buttonBorderShape(.circle)
+        } else {
+            content
+                .buttonStyle(LegacyCircleKeyStyle())
+        }
+    }
+}
+
+private struct LegacyCircleKeyStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .background(.ultraThinMaterial, in: Circle())
+            .opacity(configuration.isPressed ? 0.6 : 1.0)
+            .animation(.easeOut(duration: 0.1), value: configuration.isPressed)
+    }
+}
+
 // MARK: - Individual key
 
 struct PadKey: View {
@@ -133,8 +157,7 @@ struct PadKey: View {
                 keyLabel
                     .frame(width: 80, height: 80)
             }
-            .buttonStyle(.glass)
-            .buttonBorderShape(.circle)
+            .modifier(KeypadButtonModifier())
         }
     }
 

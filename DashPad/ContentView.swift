@@ -6,16 +6,15 @@ struct ContentView: View {
 
     var body: some View {
         ZStack {
-            // Main content layer
-            Group {
-                switch kioskManager.displayState {
-                case .active:
-                    KioskBrowserView()
-                case .idle:
-                    IdleView()
-                }
+            // WebView stays resident so returning to active never triggers a reload
+            KioskBrowserView()
+                .ignoresSafeArea()
+
+            if kioskManager.displayState == .idle {
+                IdleView()
+                    .ignoresSafeArea()
+                    .transition(.opacity)
             }
-            .ignoresSafeArea()
 
             // Invisible 88×88 pt corner tap target (bottom-right) for secret gesture
             VStack {

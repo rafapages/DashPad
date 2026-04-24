@@ -4,7 +4,7 @@ import SwiftUI
 struct ClockView: View {
     @Environment(AppSettings.self) var settings
     @State private var now = Date()
-    private let ticker = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
+    private let ticker = Timer.publish(every: 60, on: .main, in: .common).autoconnect()
 
     var body: some View {
         ZStack {
@@ -28,7 +28,7 @@ private struct DigitalClockFace: View {
 
     var body: some View {
         VStack(spacing: 12) {
-            Text(now, format: .dateTime.hour().minute().second())
+            Text(now, format: .dateTime.hour().minute())
                 .font(.system(size: 96, weight: .thin, design: .default))
                 .monospacedDigit()
                 .foregroundStyle(.white)
@@ -47,8 +47,7 @@ private struct AnalogClockFace: View {
 
     private var calendar: Calendar { .current }
 
-    private var seconds: Double { Double(calendar.component(.second, from: now)) }
-    private var minutes: Double { Double(calendar.component(.minute, from: now)) + seconds / 60 }
+    private var minutes: Double { Double(calendar.component(.minute, from: now)) }
     private var hours: Double { Double(calendar.component(.hour, from: now)).truncatingRemainder(dividingBy: 12) + minutes / 60 }
 
     var body: some View {
@@ -69,7 +68,6 @@ private struct AnalogClockFace: View {
 
             ClockHand(angle: .degrees(hours * 30), length: 80, width: 4, color: .white)
             ClockHand(angle: .degrees(minutes * 6), length: 110, width: 3, color: .white)
-            ClockHand(angle: .degrees(seconds * 6), length: 120, width: 1.5, color: .red)
 
             Circle().fill(Color.white).frame(width: 10, height: 10)
         }
