@@ -14,6 +14,10 @@ struct ContentView: View {
                 IdleView()
                     .ignoresSafeArea()
                     .transition(.opacity)
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        kioskManager.handleScreenTap()
+                    }
             }
 
             // Invisible 88×88 pt corner tap target (bottom-right) for secret gesture

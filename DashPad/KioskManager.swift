@@ -47,6 +47,18 @@ class KioskManager {
         startPresencePipeline()
     }
 
+    // MARK: - Touch-to-wake
+
+    func handleScreenTap() {
+        guard presenceDetector != nil else { return }
+        switch presenceState {
+        case .idle, .sampling, .countingDown, .rechecking:
+            enterActive(event: "👆  Screen tapped")
+        case .active:
+            break
+        }
+    }
+
     // MARK: - Secret gesture → PIN prompt
 
     func handleSecretTap() {
