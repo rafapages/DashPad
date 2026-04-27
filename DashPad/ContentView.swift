@@ -8,7 +8,6 @@ struct ContentView: View {
         ZStack {
             // WebView stays resident so returning to active never triggers a reload
             KioskBrowserView()
-                .ignoresSafeArea()
 
             if kioskManager.displayState == .idle {
                 IdleView()
@@ -42,7 +41,6 @@ struct ContentView: View {
                     .zIndex(10)
             }
         }
-        .ignoresSafeArea()
         .sheet(isPresented: Bindable(kioskManager).showingSettings) {
             SettingsView()
         }

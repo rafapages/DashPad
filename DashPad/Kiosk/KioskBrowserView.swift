@@ -7,7 +7,6 @@ struct KioskBrowserView: View {
 
     var body: some View {
         WebViewRepresentable(settings: settings)
-            .ignoresSafeArea()
     }
 }
 
