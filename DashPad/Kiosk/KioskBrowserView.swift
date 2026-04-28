@@ -8,9 +8,15 @@ import WebKit
 struct KioskBrowserView: View {
     @Environment(AppSettings.self) var settings
     @Environment(KioskManager.self) var kioskManager
+    @State private var webController = WebViewController()
 
     var body: some View {
-        WebViewRepresentable(settings: settings)
+        ZStack {
+            WebViewRepresentable(settings: settings, webController: webController)
+                .ignoresSafeArea()
+            BrowserDrawer(webController: webController)
+        }
+        .ignoresSafeArea()
     }
 }
 
@@ -18,6 +24,7 @@ struct KioskBrowserView: View {
 
 struct WebViewRepresentable: UIViewRepresentable {
     let settings: AppSettings
+    let webController: WebViewController
 
     func makeUIView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
@@ -34,6 +41,8 @@ struct WebViewRepresentable: UIViewRepresentable {
         webView.backgroundColor = .black
         webView.isOpaque = true
 
+        webController.webView = webView
+
         loadHome(in: webView)
         return webView
     }
@@ -42,7 +51,7 @@ struct WebViewRepresentable: UIViewRepresentable {
     // Settings changes (CSS, JS, URL) are applied on the next explicit page load, not here.
     func updateUIView(_ uiView: WKWebView, context: Context) {}
 
-    func makeCoordinator() -> Coordinator { Coordinator(settings: settings) }
+    func makeCoordinator() -> Coordinator { Coordinator(settings: settings, webController: webController) }
 
     // MARK: - Script injection
 
@@ -99,10 +108,12 @@ struct WebViewRepresentable: UIViewRepresentable {
 extension WebViewRepresentable {
     class Coordinator: NSObject, WKNavigationDelegate {
         let settings: AppSettings
+        let webController: WebViewController
         private var retryTimer: Timer?
 
-        init(settings: AppSettings) {
+        init(settings: AppSettings, webController: WebViewController) {
             self.settings = settings
+            self.webController = webController
         }
 
         func webView(
@@ -116,6 +127,12 @@ extension WebViewRepresentable {
                 host == domain || host.hasSuffix(".\(domain)")
             }
             return allowed ? .allow : .cancel
+        }
+
+        func webView(_ webView: WKWebView, didFinish _: WKNavigation!) {
+            webController.canGoBack = webView.canGoBack
+            webController.currentURL = webView.url
+            webController.applyZoom()
         }
 
         func webView(_ webView: WKWebView, didFailProvisionalNavigation _: WKNavigation!, withError _: Error) {
