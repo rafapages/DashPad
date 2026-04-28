@@ -1,3 +1,7 @@
+// AppSettings.swift — single source of truth for all user configuration.
+// Every property persists immediately via didSet → UserDefaults (or Keychain for the PIN).
+// Injected into the SwiftUI environment at the root; read by views and KioskManager alike.
+
 import Foundation
 import Security
 
@@ -12,7 +16,7 @@ class AppSettings {
     var clockStyle: ClockStyle { didSet { save(clockStyle.rawValue, key: .clockStyle) } }
     var idleBrightness: Double { didSet { save(idleBrightness, key: .idleBrightness) } }
     var activeBrightness: Double { didSet { save(activeBrightness, key: .activeBrightness) } }
-    var presenceEnabled: Bool { didSet { save(presenceEnabled, key: .presenceEnabled) } }
+    var presenceMode: PresenceMode { didSet { save(presenceMode.rawValue, key: .presenceMode) } }
     var cameraSampleRate: Double { didSet { save(cameraSampleRate, key: .cameraSampleRate) } }
     var nightSampleRate: Double { didSet { save(nightSampleRate, key: .nightSampleRate) } }
     var presenceRecheckInterval: Double { didSet { save(presenceRecheckInterval, key: .presenceRecheckInterval) } }
@@ -22,14 +26,24 @@ class AppSettings {
     var customCSS: String { didSet { save(customCSS, key: .customCSS) } }
     var customJS: String { didSet { save(customJS, key: .customJS) } }
     var favouriteURLs: [String] { didSet { save(favouriteURLs, key: .favouriteURLs) } }
+    var weeklySchedule: WeeklySchedule { didSet { saveCodable(weeklySchedule, key: .weeklySchedule) } }
+    var manualWakeTimeout: Double { didSet { save(manualWakeTimeout, key: .manualWakeTimeout) } }
 
-    // PIN is a stored property backed by Keychain via didSet
+    // PIN is stored in Keychain
     var exitPIN: String {
         didSet { KeychainHelper.write(key: "com.rafapages.dashpad.exitPIN", value: exitPIN) }
     }
 
     init() {
         let ud = UserDefaults.standard
+
+        // Migration: if presenceMode not yet saved, derive from legacy presenceEnabled
+        if ud.object(forKey: Key.presenceMode.rawValue) == nil {
+            let legacy = ud.object(forKey: "presenceEnabled") as? Bool ?? true
+            ud.set(legacy ? PresenceMode.automatic.rawValue : PresenceMode.alwaysActive.rawValue,
+                   forKey: Key.presenceMode.rawValue)
+        }
+
         homeURL = ud.string(forKey: Key.homeURL.rawValue) ?? "http://homeassistant.local:8123"
         idleTimeout = ud.optionalDouble(forKey: Key.idleTimeout.rawValue) ?? 60.0
         idleScreenType = IdleScreenType(rawValue: ud.string(forKey: Key.idleScreenType.rawValue) ?? "") ?? .clock
@@ -37,7 +51,7 @@ class AppSettings {
         clockStyle = ClockStyle(rawValue: ud.string(forKey: Key.clockStyle.rawValue) ?? "") ?? .digital
         idleBrightness = ud.optionalDouble(forKey: Key.idleBrightness.rawValue) ?? 0.15
         activeBrightness = ud.optionalDouble(forKey: Key.activeBrightness.rawValue) ?? 0.80
-        presenceEnabled = ud.object(forKey: Key.presenceEnabled.rawValue) as? Bool ?? true
+        presenceMode = PresenceMode(rawValue: ud.string(forKey: Key.presenceMode.rawValue) ?? "") ?? .automatic
         cameraSampleRate = ud.optionalDouble(forKey: Key.cameraSampleRate.rawValue) ?? 5.0
         nightSampleRate = ud.optionalDouble(forKey: Key.nightSampleRate.rawValue) ?? 60.0
         presenceRecheckInterval = ud.optionalDouble(forKey: Key.presenceRecheckInterval.rawValue) ?? 30.0
@@ -47,6 +61,8 @@ class AppSettings {
         customCSS = ud.string(forKey: Key.customCSS.rawValue) ?? ""
         customJS = ud.string(forKey: Key.customJS.rawValue) ?? ""
         favouriteURLs = ud.stringArray(forKey: Key.favouriteURLs.rawValue) ?? []
+        weeklySchedule = Self.decodeCodable(WeeklySchedule.self, forKey: Key.weeklySchedule.rawValue) ?? WeeklySchedule()
+        manualWakeTimeout = ud.optionalDouble(forKey: Key.manualWakeTimeout.rawValue) ?? 120.0
         exitPIN = KeychainHelper.read(key: "com.rafapages.dashpad.exitPIN") ?? ""
     }
 
@@ -61,7 +77,8 @@ class AppSettings {
 
     private enum Key: String {
         case homeURL, idleTimeout, idleScreenType, idleCustomURL, clockStyle
-        case presenceEnabled
+        case presenceEnabled // legacy key — do not use, kept for migration reads only
+        case presenceMode, weeklySchedule, manualWakeTimeout
         case idleBrightness, activeBrightness, cameraSampleRate, nightSampleRate
         case presenceRecheckInterval, darkLuminanceThreshold
         case allowedDomains, customCSS, customJS, favouriteURLs, detectionMode
@@ -70,9 +87,57 @@ class AppSettings {
     private func save(_ value: some Any, key: Key) {
         UserDefaults.standard.set(value, forKey: key.rawValue)
     }
+
+    // UserDefaults cannot store arbitrary Codable structs directly, so we JSON-encode to Data.
+    private func saveCodable<T: Codable>(_ value: T, key: Key) {
+        if let data = try? JSONEncoder().encode(value) {
+            UserDefaults.standard.set(data, forKey: key.rawValue)
+        }
+    }
+
+    private static func decodeCodable<T: Codable>(_ type: T.Type, forKey key: String) -> T? {
+        guard let data = UserDefaults.standard.data(forKey: key) else { return nil }
+        return try? JSONDecoder().decode(type, from: data)
+    }
 }
 
 // MARK: - Supporting types
+
+enum PresenceMode: String, CaseIterable, Codable {
+    case automatic, schedule, alwaysActive
+
+    var displayName: String {
+        switch self {
+        case .automatic:    "Automatic (Camera)"
+        case .schedule:     "Schedule"
+        case .alwaysActive: "Always Active"
+        }
+    }
+}
+
+struct ScheduleWindow: Identifiable, Codable, Equatable {
+    var id: UUID = UUID()
+    var startMinute: Int   // 0–1439 (minutes since midnight)
+    var endMinute: Int     // 0–1439; endMinute < startMinute means the window spans midnight
+
+    var spansMidnight: Bool { endMinute < startMinute }
+
+    func isActive(at minuteOfDay: Int) -> Bool {
+        if spansMidnight {
+            // e.g. 22:00–07:00: active from start until midnight, and again from midnight until end.
+            return minuteOfDay >= startMinute || minuteOfDay < endMinute
+        } else {
+            return minuteOfDay >= startMinute && minuteOfDay < endMinute
+        }
+    }
+}
+
+struct WeeklySchedule: Codable, Equatable {
+    var sameEveryDay: Bool = true
+    /// Index 0 = Sunday … 6 = Saturday, matching `Calendar.component(.weekday) - 1`.
+    /// When `sameEveryDay` is true only `windows[0]` is evaluated.
+    var windows: [[ScheduleWindow]] = Array(repeating: [], count: 7)
+}
 
 enum IdleScreenType: String, CaseIterable {
     case clock, blank, customURL

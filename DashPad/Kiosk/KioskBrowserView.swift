@@ -1,3 +1,7 @@
+// KioskBrowserView.swift — WKWebView wrapper for the main dashboard.
+// The WebView is created once and kept alive for the full app session so that navigating
+// back from idle never triggers a full page reload.
+
 import SwiftUI
 import WebKit
 
@@ -34,6 +38,8 @@ struct WebViewRepresentable: UIViewRepresentable {
         return webView
     }
 
+    // Intentionally empty: the WebView is long-lived and manages its own state.
+    // Settings changes (CSS, JS, URL) are applied on the next explicit page load, not here.
     func updateUIView(_ uiView: WKWebView, context: Context) {}
 
     func makeCoordinator() -> Coordinator { Coordinator(settings: settings) }
@@ -64,6 +70,8 @@ struct WebViewRepresentable: UIViewRepresentable {
     }
 
     private func addCSS(_ css: String, to config: WKWebViewConfiguration) {
+        // WKUserScript can only inject JavaScript, so CSS is wrapped in a JS snippet that
+        // creates a <style> element and appends it to <head>. The CSS must be escaped first.
         // Escape for JS string literal
         let escaped = css
             .replacingOccurrences(of: "\\", with: "\\\\")

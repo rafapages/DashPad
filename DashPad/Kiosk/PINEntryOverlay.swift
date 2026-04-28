@@ -1,3 +1,7 @@
+// PINEntryOverlay.swift — full-screen PIN entry shown over the dashboard when the secret
+// gesture fires and a PIN is configured. Also contains PINSetupView (the two-phase
+// confirmation sheet used when setting or changing the PIN).
+
 import SwiftUI
 
 struct PINEntryOverlay: View {
@@ -63,6 +67,9 @@ struct PINEntryOverlay: View {
         showError = false
 
         let stored = kioskManager.storedPINLength
+        // Validate as soon as the entered length matches the stored PIN length.
+        // The max(stored, 4) floor prevents validating a 0-length PIN on the first digit
+        // in the edge case where storedPINLength returns an unexpected value.
         let shouldValidate = entered.count == max(stored, 4)
         if shouldValidate {
             attemptValidation()

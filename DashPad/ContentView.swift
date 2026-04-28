@@ -1,3 +1,6 @@
+// ContentView.swift — root view; a thin switcher between KioskBrowserView (active) and
+// IdleView (idle). All logic lives in KioskManager; this file contains no business logic.
+
 import SwiftUI
 
 struct ContentView: View {
@@ -15,7 +18,11 @@ struct ContentView: View {
                     .transition(.opacity)
                     .contentShape(Rectangle())
                     .onTapGesture {
+                        // Both calls are safe here: each is guarded to its own presence mode,
+                        // so only one will act. Camera mode uses handleScreenTap(); schedule
+                        // mode uses manualWake(). Always-active mode never shows the idle screen.
                         kioskManager.handleScreenTap()
+                        kioskManager.manualWake()
                     }
             }
 
@@ -46,6 +53,9 @@ struct ContentView: View {
         }
         .onAppear {
             kioskManager.start(settings: settings)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
+            kioskManager.evaluateSchedule()
         }
     }
 }

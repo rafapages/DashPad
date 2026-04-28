@@ -1,3 +1,9 @@
+// KioskManager.swift — central coordinator for the app.
+// Owns the active presence mode (camera pipeline, schedule timer, or always-active),
+// drives the active/idle display state machine, and manages the PIN/settings access flow.
+// Injected into the SwiftUI environment; views call its public methods rather than
+// modifying state directly.
+
 import AVFoundation
 import LocalAuthentication
 import SwiftUI
@@ -21,34 +27,113 @@ class KioskManager {
 
     var debugViewModel: PresenceDebugViewModel?
     private(set) var lastLuminance: Double = 0
-    // Set when entering .active (recheck timer started) or .countingDown (countdown started).
     private(set) var stateTimerStartDate: Date?
+    /// Non-nil while a tap-to-wake is in progress in Schedule mode. Cleared by
+    /// `evaluateSchedule()` once the date is passed, or when the mode changes.
+    private(set) var manualWakeUntil: Date? = nil
 
     private var settings: AppSettings?
     private var presenceDetector: PresenceDetector?
     private var sampleTimer: Timer?
     private var recheckTimer: Timer?
     private var countdownTimer: Timer?
+    private var scheduleTimer: Timer?
     private var lastFrameWasDark = false
     private var started = false
 
     // MARK: - Lifecycle
 
+    /// Called once from `ContentView.onAppear`. Starts the presence pipeline appropriate
+    /// for the current `presenceMode`. Subsequent mode changes go through `setPresenceMode(_:)`.
     func start(settings: AppSettings) {
         guard !started else { return }
         started = true
         self.settings = settings
 
-        guard settings.presenceEnabled else {
-            transitionDisplay(to: .active)
-            return
+        switch settings.presenceMode {
+        case .automatic:    startPresencePipeline()
+        case .schedule:     startScheduleTimer()
+        case .alwaysActive: transitionDisplay(to: .active)
         }
-
-        startPresencePipeline()
     }
 
-    // MARK: - Touch-to-wake
+    // MARK: - Schedule mode
 
+    /// Checks whether the current time falls inside an Active window and transitions
+    /// the display accordingly. Called every 60 s by the schedule timer and also on
+    /// `applicationDidBecomeActive` to catch transitions that occurred while backgrounded.
+    func evaluateSchedule() {
+        guard let settings, settings.presenceMode == .schedule else { return }
+
+        if let until = manualWakeUntil {
+            if Date() < until {
+                transitionDisplay(to: .active)
+                return
+            } else {
+                manualWakeUntil = nil
+            }
+        }
+
+        let calendar = Calendar.current
+        let now = Date()
+        let minuteOfDay = calendar.component(.hour, from: now) * 60
+                        + calendar.component(.minute, from: now)
+        let weekday = calendar.component(.weekday, from: now) - 1 // 0-indexed
+
+        let windows: [ScheduleWindow]
+        if settings.weeklySchedule.sameEveryDay {
+            windows = settings.weeklySchedule.windows[0]
+        } else {
+            windows = settings.weeklySchedule.windows[weekday]
+        }
+
+        let shouldBeActive = windows.contains { $0.isActive(at: minuteOfDay) }
+        transitionDisplay(to: shouldBeActive ? .active : .idle)
+    }
+
+    /// Wakes the display temporarily in response to a tap on the idle screen while in
+    /// Schedule mode. Each call pushes `manualWakeUntil` forward; the next timer tick
+    /// will clear it and return to the schedule-driven state if it has expired.
+    func manualWake() {
+        guard let settings, settings.presenceMode == .schedule else { return }
+        guard displayState == .idle else { return }
+        manualWakeUntil = Date().addingTimeInterval(settings.manualWakeTimeout)
+        transitionDisplay(to: .active)
+    }
+
+    private func startScheduleTimer() {
+        evaluateSchedule()
+        scheduleTimer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in
+            self?.evaluateSchedule()
+        }
+    }
+
+    private func stopScheduleTimer() {
+        scheduleTimer?.invalidate()
+        scheduleTimer = nil
+        manualWakeUntil = nil
+    }
+
+    // MARK: - Presence mode switch
+
+    /// Tears down the current presence mode and starts the new one. Safe to call at any time.
+    func setPresenceMode(_ mode: PresenceMode) {
+        stopScheduleTimer()
+        cancelAllTimers()
+        presenceDetector = nil
+        presenceState = .idle
+
+        switch mode {
+        case .automatic:    startPresencePipeline()
+        case .schedule:     startScheduleTimer()
+        case .alwaysActive: transitionDisplay(to: .active)
+        }
+    }
+
+    // MARK: - Touch-to-wake (camera mode)
+
+    /// Wakes the display from idle in response to a screen tap. Only acts in Automatic
+    /// (camera) mode — the presence detector must be active. For Schedule mode use `manualWake()`.
     func handleScreenTap() {
         guard presenceDetector != nil else { return }
         switch presenceState {
@@ -61,6 +146,8 @@ class KioskManager {
 
     // MARK: - Secret gesture → PIN prompt
 
+    /// Called by the invisible triple-tap target in the bottom-right corner.
+    /// Opens settings directly if no PIN is set; otherwise shows the PIN entry overlay.
     func handleSecretTap() {
         guard !showingPINEntry, !showingSettings else { return }
         if storedPINLength == 0 {
@@ -70,6 +157,8 @@ class KioskManager {
         }
     }
 
+    /// Fallback for a forgotten PIN. Uses Face ID / Touch ID / device passcode via
+    /// `LAContext` with `.deviceOwnerAuthentication`, which includes the system passcode.
     func recoverWithBiometrics() {
         let context = LAContext()
         var error: NSError?
@@ -86,6 +175,8 @@ class KioskManager {
 
     var storedPINLength: Int { settings?.exitPIN.count ?? 0 }
 
+    /// Returns `true` and opens settings if the entered PIN matches the stored one
+    /// (or if no PIN has been set). Returns `false` and leaves the overlay visible otherwise.
     func validatePIN(_ entered: String) -> Bool {
         guard let settings else { return false }
         let stored = settings.exitPIN
@@ -114,19 +205,7 @@ class KioskManager {
         }
     }
 
-    // MARK: - Presence on/off
-
-    func setPresenceEnabled(_ enabled: Bool) {
-        if enabled {
-            guard presenceDetector == nil else { return }
-            startPresencePipeline()
-        } else {
-            cancelAllTimers()
-            presenceDetector = nil
-            presenceState = .idle
-            transitionDisplay(to: .active)
-        }
-    }
+    // MARK: - Camera presence pipeline
 
     private func startPresencePipeline() {
         presenceDetector = PresenceDetector()
@@ -193,7 +272,6 @@ class KioskManager {
         cancelAllTimers()
         presenceState = .countingDown
         stateTimerStartDate = Date()
-        // displayState stays .active — dashboard remains visible during the countdown.
 
         let timeout = settings?.idleTimeout ?? 60
         countdownTimer = Timer.scheduledTimer(withTimeInterval: timeout, repeats: false) { [weak self] _ in
@@ -295,6 +373,8 @@ class KioskManager {
 
     private func transitionDisplay(to state: DisplayState) {
         guard displayState != state else { return }
+        // Active is slightly snappier (0.4 s) — the user just arrived and wants the screen now.
+        // Idle is a touch slower (0.6 s) — a gradual fade feels more natural when the room empties.
         withAnimation(.easeInOut(duration: state == .active ? 0.4 : 0.6)) { displayState = state }
         let brightness = state == .active ? settings?.activeBrightness : settings?.idleBrightness
         if let b = brightness { mainScreen?.brightness = b }

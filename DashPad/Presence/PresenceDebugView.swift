@@ -1,3 +1,7 @@
+// PresenceDebugView.swift — developer debug overlay for the Automatic (camera) presence mode.
+// Embedded inside the Presence settings section when Debug Mode is toggled on.
+// Displays the last captured frame with Vision bounding boxes, live status rows, and an event log.
+
 import Combine
 import SwiftUI
 import Vision

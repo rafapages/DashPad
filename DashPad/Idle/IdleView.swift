@@ -1,3 +1,6 @@
+// IdleView.swift — shown whenever KioskManager.displayState is .idle.
+// Switches between the three idle screen modes (clock, blank, custom URL).
+
 import SwiftUI
 import WebKit
 

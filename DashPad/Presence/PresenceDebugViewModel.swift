@@ -1,3 +1,7 @@
+// PresenceDebugViewModel.swift — observable state for the presence debug overlay in settings.
+// KioskManager holds a weak reference to this; when debug mode is turned off the reference
+// is cleared to nil, which stops all debug output with no additional coordination needed.
+
 import Foundation
 import UIKit
 import Vision

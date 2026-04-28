@@ -1,9 +1,13 @@
+// ClockView.swift — full-screen idle clock, available in digital and analogue styles.
+
 import Combine
 import SwiftUI
 
 struct ClockView: View {
     @Environment(AppSettings.self) var settings
     @State private var now = Date()
+    // Ticks every 60 s because neither clock style shows a seconds hand; firing every
+    // second would redraw the view 59 times per minute for no visible benefit.
     private let ticker = Timer.publish(every: 60, on: .main, in: .common).autoconnect()
 
     var body: some View {
