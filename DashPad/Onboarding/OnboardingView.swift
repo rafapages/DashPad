@@ -28,11 +28,13 @@ struct OnboardingView: View {
                         insertion: .move(edge: .trailing).combined(with: .opacity),
                         removal: .move(edge: .leading).combined(with: .opacity)
                     ))
-                    .padding(.horizontal, 28)
-                    .padding(.top, 40)
-                    .padding(.bottom, 32)
+                    // Step 1 manages its own padding so the gradient can go edge-to-edge.
+                    // Steps 2–6 are capped at 520 pt so they don't over-stretch on large iPads.
+                    .padding(.horizontal, step == 1 ? 0 : 28)
+                    .padding(.top, step == 1 ? 0 : 40)
+                    .padding(.bottom, step == 1 ? 0 : 32)
+                    .frame(maxWidth: step == 1 ? .infinity : 520, alignment: .center)
             }
-            .frame(maxWidth: 520)
             .frame(maxWidth: .infinity)
         }
         .safeAreaInset(edge: .bottom) {
@@ -98,33 +100,50 @@ struct OnboardingView: View {
     // MARK: - Step 1: Welcome
 
     private func welcomeStep() -> some View {
-        VStack(spacing: 32) {
-            Spacer(minLength: 48)
-
-            VStack(spacing: 20) {
-                Image(systemName: "rectangle.on.rectangle.angled")
-                    .font(.system(size: 72, weight: .thin))
-                    .foregroundStyle(.tint)
-
-                VStack(spacing: 14) {
-                    Text("Welcome to DashPad")
-                        .font(.largeTitle.weight(.bold))
-                        .multilineTextAlignment(.center)
-
-                    Text("Turn your iPad into a dedicated, always-on kiosk display. This takes about a minute to set up, and everything can be changed later in Settings.")
-                        .font(.body)
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.center)
-                        .fixedSize(horizontal: false, vertical: true)
+        VStack(spacing: 0) {
+            // Animated gradient header — edge-to-edge, top corners match the sheet.
+            // Adjust the fraction below to change how much of the sheet height it occupies.
+            AnimatedBlobGradient()
+                .containerRelativeFrame(.vertical) { h, _ in h * 0.5 }
+                .clipShape(UnevenRoundedRectangle(
+                    topLeadingRadius: 20, bottomLeadingRadius: 0,
+                    bottomTrailingRadius: 0, topTrailingRadius: 20
+                ))
+                .overlay {
+                    ZStack {
+                        Image("2-widgets")
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                        Image("1-frame")
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                    }
+                    .frame(width: 330)
                 }
-            }
 
-            Spacer(minLength: 48)
+            // Card body — own horizontal padding so text is inset from the gradient edges
+            VStack(spacing: 14) {
+                Text("Welcome to DashPad")
+                    .font(.largeTitle.weight(.bold))
+                    .multilineTextAlignment(.center)
+
+                Text("Turn your iPad into a dedicated, always-on kiosk display. This takes about a minute to set up, and everything can be changed later in Settings.")
+                    .font(.body)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(.horizontal, 28)
+            .padding(.top, 28)
+
+            Spacer(minLength: 28)
 
             Button("Get started") { advance() }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
                 .frame(maxWidth: .infinity)
+                .padding(.horizontal, 28)
+                .padding(.bottom, 32)
         }
     }
 
