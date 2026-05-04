@@ -65,18 +65,31 @@ struct SettingsView: View {
     @State private var debugModeEnabled = false
     @State private var debugViewModel = PresenceDebugViewModel()
     @State private var addWindowRequest: AddWindowRequest? = nil
+    @State private var showingSetupAssistant = false
 
     var body: some View {
         let s = Bindable(settings)
 
         NavigationSplitView {
-            List(SettingsCategory.allCases, selection: $selectedCategory) { cat in
-                Label {
-                    Text(cat.rawValue)
-                } icon: {
-                    CategoryIcon(category: cat)
+            List(selection: $selectedCategory) {
+                ForEach(SettingsCategory.allCases) { cat in
+                    Label {
+                        Text(cat.rawValue)
+                    } icon: {
+                        CategoryIcon(category: cat)
+                    }
+                    .tag(cat)
                 }
-                .tag(cat)
+
+                Section {
+                    Button {
+                        showingSetupAssistant = true
+                    } label: {
+                        Label("Setup assistant", systemImage: "wand.and.stars")
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                }
             }
             .scrollContentBackground(.hidden)
             .navigationTitle("DashPad")
@@ -96,6 +109,13 @@ struct SettingsView: View {
         }
         .containerBackground(.clear, for: .navigationSplitView)
         .presentationDetents([.medium, .large])
+        .sheet(isPresented: $showingSetupAssistant) {
+            OnboardingView(onComplete: {
+                kioskManager.dismissSettings()
+            })
+            .environment(settings)
+            .environment(kioskManager)
+        }
         .onDisappear {
             kioskManager.debugViewModel = nil
         }

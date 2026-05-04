@@ -7,6 +7,9 @@ struct ContentView: View {
     @Environment(KioskManager.self) var kioskManager
     @Environment(AppSettings.self) var settings
 
+    @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
+    @State private var showingOnboarding = false
+
     var body: some View {
         ZStack {
             // WebView stays resident so returning to active never triggers a reload
@@ -51,7 +54,17 @@ struct ContentView: View {
         .sheet(isPresented: Bindable(kioskManager).showingSettings) {
             SettingsView()
         }
+        .sheet(isPresented: $showingOnboarding) {
+            OnboardingView(onComplete: {
+                hasCompletedOnboarding = true
+            })
+            .environment(settings)
+            .environment(kioskManager)
+        }
         .onAppear {
+            if !hasCompletedOnboarding {
+                showingOnboarding = true
+            }
             kioskManager.start(settings: settings)
         }
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
