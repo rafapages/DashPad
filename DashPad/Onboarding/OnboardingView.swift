@@ -4,14 +4,13 @@ import SwiftUI
 // MARK: - OnboardingView
 
 struct OnboardingView: View {
-    /// Called when the user completes the final step. The caller is responsible
-    /// for persisting the completion flag and dismissing any parent UI.
     var onComplete: () -> Void
 
     @Environment(AppSettings.self) private var settings
     @Environment(\.dismiss) private var dismiss
 
     @State private var step = 1
+    @State private var slideForward = true
     @State private var urlText = ""
     @State private var urlError: String? = nil
     @State private var selectedIdleType: IdleScreenType = .clock
@@ -20,28 +19,49 @@ struct OnboardingView: View {
     @State private var pinBeforeSetup = ""
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 0) {
-                stepContent
-                    .id(step)
-                    .transition(.asymmetric(
-                        insertion: .move(edge: .trailing).combined(with: .opacity),
-                        removal: .move(edge: .leading).combined(with: .opacity)
-                    ))
-                    // Step 1 manages its own padding so the gradient can go edge-to-edge.
-                    // Steps 2–6 are capped at 520 pt so they don't over-stretch on large iPads.
-                    .padding(.horizontal, step == 1 ? 0 : 28)
-                    .padding(.top, step == 1 ? 0 : 40)
-                    .padding(.bottom, step == 1 ? 0 : 32)
-                    .frame(maxWidth: step == 1 ? .infinity : 520, alignment: .center)
+        VStack(spacing: 0) {
+            // Back button — visible on steps 2–6
+            if step > 1 {
+                HStack {
+                    Button(action: goBack) {
+                        Image(systemName: "chevron.left")
+                            .font(.body.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.leading, 20)
+                    Spacer()
+                }
+                .padding(.top, 16)
+                .padding(.bottom, 4)
             }
-            .frame(maxWidth: .infinity)
-        }
-        .safeAreaInset(edge: .bottom) {
-            if step >= 2 && step <= 6 {
-                progressPills(current: step - 2, total: 5)
-                    .padding(.vertical, 24)
+
+            // Scrollable step content (no buttons — those are in the fixed footer)
+            ScrollView {
+                VStack(spacing: 0) {
+                    stepContent
+                        .id(step)
+                        .transition(.asymmetric(
+                            insertion: .move(edge: slideForward ? .trailing : .leading).combined(with: .opacity),
+                            removal: .move(edge: slideForward ? .leading : .trailing).combined(with: .opacity)
+                        ))
+                        .padding(.horizontal, step == 1 ? 0 : 28)
+                        .padding(.top, step == 1 ? 0 : 24)
+                        .frame(maxWidth: step == 1 ? .infinity : 520, alignment: .center)
+                }
+                .frame(maxWidth: .infinity)
             }
+
+            // Fixed footer: progress dots + CTA buttons
+            VStack(spacing: 12) {
+                if step >= 2 && step <= 6 {
+                    progressPills(current: step - 2, total: 5)
+                }
+                footerButtons
+                    .padding(.horizontal, 28)
+            }
+            .padding(.top, 12)
+            .padding(.bottom, 32)
         }
         .sheet(isPresented: $showingPINSetup) {
             PINSetupView(savedPIN: Bindable(settings).exitPIN)
@@ -59,23 +79,72 @@ struct OnboardingView: View {
         }
     }
 
+    // MARK: - Footer buttons
+
     @ViewBuilder
-    private var stepContent: some View {
+    private var footerButtons: some View {
         switch step {
-        case 1: welcomeStep()
-        case 2: presenceStep()
-        case 3: dashboardURLStep()
-        case 4: idleScreenStep()
-        case 5: pinStep()
-        default: gestureStep()
+        case 1:
+            primaryButton("Get started", action: advance)
+                .frame(maxWidth: .infinity)
+        case 2:
+            HStack(spacing: 8) {
+                secondaryButton("Skip for now") {
+                    settings.presenceMode = .alwaysActive
+                    advance()
+                }
+                primaryButton(cameraAccessDenied ? "Continue" : "Enable & allow access") {
+                    cameraAccessDenied ? advance() : requestCamera()
+                }
+            }
+        case 3:
+            primaryButton("Continue", action: validateAndAdvance)
+                .frame(maxWidth: .infinity)
+        case 4:
+            primaryButton("Continue") {
+                settings.idleScreenType = selectedIdleType
+                advance()
+            }
+            .frame(maxWidth: .infinity)
+        case 5:
+            HStack(spacing: 8) {
+                secondaryButton("Skip for now", action: advance)
+                primaryButton("Set a PIN") {
+                    pinBeforeSetup = settings.exitPIN
+                    showingPINSetup = true
+                }
+            }
+        default:
+            primaryButton("All done — open my display", action: complete)
+                .frame(maxWidth: .infinity)
         }
+    }
+
+    private func primaryButton(_ label: String, action: @escaping () -> Void) -> some View {
+        Button(label, action: action)
+            .buttonStyle(.borderedProminent)
+            .controlSize(.large)
+    }
+
+    private func secondaryButton(_ label: String, action: @escaping () -> Void) -> some View {
+        Button(label, action: action)
+            .buttonStyle(.bordered)
+            .controlSize(.large)
     }
 
     // MARK: - Navigation
 
     private func advance() {
         withAnimation(.spring(duration: 0.35)) {
+            slideForward = true
             step += 1
+        }
+    }
+
+    private func goBack() {
+        withAnimation(.spring(duration: 0.35)) {
+            slideForward = false
+            step -= 1
         }
     }
 
@@ -97,12 +166,39 @@ struct OnboardingView: View {
         }
     }
 
+    private func validateAndAdvance() {
+        let trimmed = urlText.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty,
+              trimmed.hasPrefix("http://") || trimmed.hasPrefix("https://") else {
+            urlError = "Please enter a valid URL starting with http:// or https://"
+            return
+        }
+        urlError = nil
+        settings.homeURL = trimmed
+        UIApplication.shared.sendAction(
+            #selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil
+        )
+        advance()
+    }
+
+    // MARK: - Step content (buttons are in the fixed footer, not here)
+
+    @ViewBuilder
+    private var stepContent: some View {
+        switch step {
+        case 1: welcomeStep()
+        case 2: presenceStep()
+        case 3: dashboardURLStep()
+        case 4: idleScreenStep()
+        case 5: pinStep()
+        default: gestureStep()
+        }
+    }
+
     // MARK: - Step 1: Welcome
 
     private func welcomeStep() -> some View {
         VStack(spacing: 0) {
-            // Animated gradient header — edge-to-edge, top corners match the sheet.
-            // Adjust the fraction below to change how much of the sheet height it occupies.
             AnimatedBlobGradient()
                 .containerRelativeFrame(.vertical) { h, _ in h * 0.5 }
                 .clipShape(UnevenRoundedRectangle(
@@ -121,7 +217,6 @@ struct OnboardingView: View {
                     .frame(width: 330)
                 }
 
-            // Card body — own horizontal padding so text is inset from the gradient edges
             VStack(spacing: 14) {
                 Text("Welcome to DashPad")
                     .font(.largeTitle.weight(.bold))
@@ -135,15 +230,7 @@ struct OnboardingView: View {
             }
             .padding(.horizontal, 28)
             .padding(.top, 28)
-
-            Spacer(minLength: 28)
-
-            Button("Get started") { advance() }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
-                .frame(maxWidth: .infinity)
-                .padding(.horizontal, 28)
-                .padding(.bottom, 32)
+            .padding(.bottom, 16)
         }
     }
 
@@ -151,7 +238,7 @@ struct OnboardingView: View {
 
     @ViewBuilder
     private func presenceStep() -> some View {
-        VStack(spacing: 24) {
+        VStack(spacing: 20) {
             stepHeader(
                 icon: "person.fill.viewfinder",
                 title: "Presence detection",
@@ -183,16 +270,6 @@ struct OnboardingView: View {
             }
 
             footerNote("Not ready to decide? You can skip this and turn it on later in Settings → Presence.")
-
-            ctaRow(
-                skipLabel: "Skip for now",
-                onSkip: {
-                    settings.presenceMode = .alwaysActive
-                    advance()
-                },
-                primaryLabel: cameraAccessDenied ? "Continue" : "Enable & allow access",
-                onPrimary: { cameraAccessDenied ? advance() : requestCamera() }
-            )
         }
     }
 
@@ -200,7 +277,7 @@ struct OnboardingView: View {
 
     @ViewBuilder
     private func dashboardURLStep() -> some View {
-        VStack(spacing: 24) {
+        VStack(spacing: 20) {
             stepHeader(
                 icon: "display",
                 title: "What would you like to display?",
@@ -228,64 +305,27 @@ struct OnboardingView: View {
             }
 
             footerNote("You can change this, add favourites, and restrict which domains the kiosk can navigate to in Settings → Dashboard.")
-
-            Button("Continue") { validateAndAdvance() }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
-                .frame(maxWidth: .infinity)
         }
-    }
-
-    private func validateAndAdvance() {
-        let trimmed = urlText.trimmingCharacters(in: .whitespaces)
-        guard !trimmed.isEmpty,
-              trimmed.hasPrefix("http://") || trimmed.hasPrefix("https://") else {
-            urlError = "Please enter a valid URL starting with http:// or https://"
-            return
-        }
-        urlError = nil
-        settings.homeURL = trimmed
-        UIApplication.shared.sendAction(
-            #selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil
-        )
-        advance()
     }
 
     // MARK: - Step 4: Idle screen
 
     @ViewBuilder
     private func idleScreenStep() -> some View {
-        VStack(spacing: 24) {
+        VStack(spacing: 20) {
             stepHeader(
                 icon: "clock",
                 title: "Idle screen",
-                body: "When no one is around, DashPad can show something other than your main display. Pick what makes sense for your setup."
+                body: "What should DashPad show when no one is around?"
             )
 
             VStack(spacing: 10) {
-                idleOptionCard(
-                    type: .clock,
-                    description: "A full-screen digital or analogue clock. Low-key and easy to read at a distance."
-                )
-                idleOptionCard(
-                    type: .blank,
-                    description: "Solid black screen. Lowest power draw — a good choice for always-on displays."
-                )
-                idleOptionCard(
-                    type: .customURL,
-                    description: "Load a different page — a photo slideshow, weather display, or anything you like."
-                )
+                idleOptionCard(type: .clock,     description: "Digital or analogue clock — easy to read at a distance.")
+                idleOptionCard(type: .blank,     description: "Solid black screen — lowest power draw.")
+                idleOptionCard(type: .customURL, description: "Load a different page — slideshow, weather, or anything you like.")
             }
 
             footerNote("Changeable anytime in Settings → Idle Screen.")
-
-            Button("Continue") {
-                settings.idleScreenType = selectedIdleType
-                advance()
-            }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.large)
-            .frame(maxWidth: .infinity)
         }
     }
 
@@ -302,14 +342,14 @@ struct OnboardingView: View {
                         .font(.body.weight(.medium))
                         .foregroundStyle(.primary)
                     Text(description)
-                        .font(.callout)
+                        .font(.footnote)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
 
                 Spacer()
             }
-            .padding(14)
+            .padding(12)
             .background(.secondary.opacity(0.08), in: RoundedRectangle(cornerRadius: 12))
         }
         .buttonStyle(.plain)
@@ -319,7 +359,7 @@ struct OnboardingView: View {
 
     @ViewBuilder
     private func pinStep() -> some View {
-        VStack(spacing: 24) {
+        VStack(spacing: 20) {
             stepHeader(
                 icon: "lock.fill",
                 title: "PIN lock",
@@ -335,16 +375,6 @@ struct OnboardingView: View {
             }
 
             footerNote("Skipping is perfectly fine for a private setup where you're the only user.")
-
-            ctaRow(
-                skipLabel: "Skip for now",
-                onSkip: advance,
-                primaryLabel: "Set a PIN",
-                onPrimary: {
-                    pinBeforeSetup = settings.exitPIN
-                    showingPINSetup = true
-                }
-            )
         }
     }
 
@@ -352,11 +382,11 @@ struct OnboardingView: View {
 
     @ViewBuilder
     private func gestureStep() -> some View {
-        VStack(spacing: 28) {
+        VStack(spacing: 20) {
             stepHeader(
                 icon: "hand.tap",
                 title: "Getting back to Settings",
-                body: "Once DashPad is running, the interface disappears so nothing gets in the way. Here's how to get back when you need to:"
+                body: "Once DashPad is running, the interface disappears so nothing gets in the way. Here's how to get back:"
             )
 
             VStack(spacing: 12) {
@@ -373,11 +403,6 @@ struct OnboardingView: View {
             }
 
             footerNote("You can re-run this setup anytime from Settings → Setup assistant.")
-
-            Button("All done — open my display") { complete() }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
-                .frame(maxWidth: .infinity)
         }
     }
 
@@ -389,8 +414,7 @@ struct OnboardingView: View {
                 .frame(width: 32)
 
             VStack(alignment: .leading, spacing: 4) {
-                Text(title)
-                    .font(.body.weight(.medium))
+                Text(title).font(.body.weight(.medium))
                 Text(description)
                     .font(.callout)
                     .foregroundStyle(.secondary)
@@ -414,7 +438,6 @@ struct OnboardingView: View {
                 Text(title)
                     .font(.title2.weight(.bold))
                     .multilineTextAlignment(.center)
-
                 Text(body)
                     .font(.body)
                     .foregroundStyle(.secondary)
@@ -433,31 +456,8 @@ struct OnboardingView: View {
 
     private func bulletRow(_ text: String) -> some View {
         HStack(alignment: .top, spacing: 8) {
-            Text("•")
-                .foregroundStyle(.secondary)
-                .font(.callout)
-            Text(text)
-                .font(.callout)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-    }
-
-    private func ctaRow(
-        skipLabel: String,
-        onSkip: @escaping () -> Void,
-        primaryLabel: String,
-        onPrimary: @escaping () -> Void
-    ) -> some View {
-        HStack(spacing: 12) {
-            Button(skipLabel, action: onSkip)
-                .buttonStyle(.bordered)
-                .controlSize(.large)
-                .frame(maxWidth: .infinity)
-
-            Button(primaryLabel, action: onPrimary)
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
-                .frame(maxWidth: .infinity)
+            Text("•").foregroundStyle(.secondary).font(.callout)
+            Text(text).font(.callout).fixedSize(horizontal: false, vertical: true)
         }
     }
 
@@ -483,8 +483,7 @@ private struct InfoBox<Content: View>: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text(title)
-                .font(.callout.weight(.semibold))
+            Text(title).font(.callout.weight(.semibold))
             content()
         }
         .padding(14)
