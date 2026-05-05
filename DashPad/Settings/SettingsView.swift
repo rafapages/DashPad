@@ -80,18 +80,29 @@ struct SettingsView: View {
                     }
                     .tag(cat)
                 }
-
-                Section {
-                    Button {
-                        showingSetupAssistant = true
-                    } label: {
-                        Label("Setup assistant", systemImage: "wand.and.stars")
-                            .foregroundStyle(.secondary)
-                    }
-                    .buttonStyle(.plain)
-                }
             }
             .scrollContentBackground(.hidden)
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                Button {
+                    showingSetupAssistant = true
+                } label: {
+                    Label {
+                        Text("Setup assistant")
+                    } icon: {
+                        Image(systemName: "wand.and.stars")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .frame(width: 30, height: 30)
+                            .background(Color.secondary.gradient, in: RoundedRectangle(cornerRadius: 7))
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.leading, 30)
+                    .padding(.trailing, 16)
+                    .padding(.vertical, 11)
+                    .padding(.bottom, 8)
+                }
+                .buttonStyle(.plain)
+            }
             .navigationTitle("DashPad")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {

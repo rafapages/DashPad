@@ -21,8 +21,12 @@ enum PresenceState {
 class KioskManager {
     var displayState: DisplayState = .active
     var presenceState: PresenceState = .idle
-    var showingPINEntry = false
-    var showingSettings = false
+    var showingPINEntry = false {
+        didSet { syncPresenceWithAppUI() }
+    }
+    var showingSettings = false {
+        didSet { syncPresenceWithAppUI() }
+    }
     var isKioskModeActive = false
 
     var debugViewModel: PresenceDebugViewModel?
@@ -364,6 +368,21 @@ class KioskManager {
     }
 
     // MARK: - Helpers
+
+    /// Suspends the camera presence pipeline while app UI (settings sheet, PIN entry) is
+    /// visible so the idle timer cannot fire during active use of the app. Resumes with a
+    /// fresh active state the moment all UI is dismissed.
+    /// No-op in schedule and always-active modes.
+    private func syncPresenceWithAppUI() {
+        guard presenceDetector != nil else { return }
+        if showingSettings || showingPINEntry {
+            cancelAllTimers()
+            presenceState = .active
+            stateTimerStartDate = nil
+        } else {
+            enterActive(event: "🔧  App UI dismissed")
+        }
+    }
 
     private func cancelAllTimers() {
         sampleTimer?.invalidate();    sampleTimer = nil
