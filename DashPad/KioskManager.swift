@@ -29,7 +29,18 @@ class KioskManager {
     }
     var isKioskModeActive = false
 
-    var debugViewModel: PresenceDebugViewModel?
+    var debugViewModel: PresenceDebugViewModel? {
+        didSet {
+            guard showingSettings || showingPINEntry, presenceDetector != nil else { return }
+            if debugViewModel != nil {
+                enterActive(event: "🔧  Debug mode started")
+            } else {
+                cancelAllTimers()
+                presenceState = .active
+                stateTimerStartDate = nil
+            }
+        }
+    }
     private(set) var lastLuminance: Double = 0
     private(set) var stateTimerStartDate: Date?
     /// Non-nil while a tap-to-wake is in progress in Schedule mode. Cleared by
@@ -372,10 +383,13 @@ class KioskManager {
     /// Suspends the camera presence pipeline while app UI (settings sheet, PIN entry) is
     /// visible so the idle timer cannot fire during active use of the app. Resumes with a
     /// fresh active state the moment all UI is dismissed.
+    /// Exception: when debug mode is active the pipeline keeps running so the debug view
+    /// shows live detections — display/brightness transitions are suppressed separately.
     /// No-op in schedule and always-active modes.
     private func syncPresenceWithAppUI() {
         guard presenceDetector != nil else { return }
         if showingSettings || showingPINEntry {
+            guard debugViewModel == nil else { return }
             cancelAllTimers()
             presenceState = .active
             stateTimerStartDate = nil
@@ -391,6 +405,7 @@ class KioskManager {
     }
 
     private func transitionDisplay(to state: DisplayState) {
+        guard !showingSettings, !showingPINEntry else { return }
         guard displayState != state else { return }
         // Active is slightly snappier (0.4 s) — the user just arrived and wants the screen now.
         // Idle is a touch slower (0.6 s) — a gradual fade feels more natural when the room empties.
