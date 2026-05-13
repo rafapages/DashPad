@@ -12,7 +12,7 @@ private enum SettingsCategory: String, CaseIterable, Identifiable {
     case kioskLock  = "Kiosk Lock"
     case presence   = "Presence"
     case brightness = "Brightness"
-    case injection  = "Injection"
+    // BETA: hidden — case injection  = "Injection"
 
     var id: Self { self }
 
@@ -23,7 +23,7 @@ private enum SettingsCategory: String, CaseIterable, Identifiable {
         case .presence:   "person.fill.viewfinder"
         case .idleScreen: "moon.fill"
         case .brightness: "sun.max.fill"
-        case .injection:  "chevron.left.slash.chevron.right"
+        // BETA: hidden — case .injection:  "chevron.left.slash.chevron.right"
         }
     }
 
@@ -34,7 +34,7 @@ private enum SettingsCategory: String, CaseIterable, Identifiable {
         case .presence:   .purple
         case .idleScreen: .indigo
         case .brightness: .yellow
-        case .injection:  .green
+        // BETA: hidden — case .injection:  .green
         }
     }
 }
@@ -142,7 +142,7 @@ struct SettingsView: View {
         case .kioskLock:  kioskLockDetail(s)
         case .presence:   presenceDetail(s)
         case .brightness: brightnessDetail(s)
-        case .injection:  injectionDetail(s)
+        // BETA: hidden — case .injection:  injectionDetail(s)
         }
     }
 
