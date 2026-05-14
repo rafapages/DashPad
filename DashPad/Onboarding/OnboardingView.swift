@@ -9,10 +9,13 @@ struct OnboardingView: View {
     @Environment(AppSettings.self) private var settings
     @Environment(\.dismiss) private var dismiss
 
+    private enum URLSetupMode { case homeAssistant, website }
+
     @State private var step = 1
     @State private var slideForward = true
     @State private var urlText = ""
     @State private var urlError: String? = nil
+    @State private var urlSetupMode: URLSetupMode? = nil
     @State private var selectedIdleType: IdleScreenType = .clock
     @State private var cameraAccessDenied = false
     @State private var showingPINSetup = false
@@ -74,7 +77,8 @@ struct OnboardingView: View {
         .presentationDetents([.large])
         .interactiveDismissDisabled(true)
         .onAppear {
-            urlText = settings.homeURL
+            urlText = ""
+            urlSetupMode = nil
             selectedIdleType = settings.idleScreenType
         }
     }
@@ -100,6 +104,7 @@ struct OnboardingView: View {
         case 3:
             primaryButton("Continue", action: validateAndAdvance)
                 .frame(maxWidth: .infinity)
+                .disabled(urlSetupMode == nil)
         case 4:
             primaryButton("Continue") {
                 settings.idleScreenType = selectedIdleType
@@ -281,31 +286,77 @@ struct OnboardingView: View {
             stepHeader(
                 icon: "display",
                 title: "What would you like to display?",
-                body: "Enter the URL of the page you want DashPad to load on startup. This can be any webpage accessible from your network."
+                body: "Choose what DashPad should load on startup."
             )
 
-            VStack(alignment: .leading, spacing: 6) {
-                TextField("http://", text: $urlText)
-                    .keyboardType(.URL)
-                    .autocorrectionDisabled()
-                    .textInputAutocapitalization(.never)
-                    .textFieldStyle(.roundedBorder)
-                    .submitLabel(.done)
-                    .onSubmit(validateAndAdvance)
+            VStack(spacing: 10) {
+                urlModeCard(
+                    mode: .homeAssistant,
+                    icon: "homekit",
+                    title: "Home Assistant",
+                    description: "Pre-fills the default local address. You can still edit it if your setup is different."
+                )
+                urlModeCard(
+                    mode: .website,
+                    icon: "globe",
+                    title: "A website or custom URL",
+                    description: "Enter any URL accessible from your network."
+                )
+            }
 
-                Text("Using Home Assistant? The default address above is already filled in.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+            if urlSetupMode != nil {
+                VStack(alignment: .leading, spacing: 6) {
+                    TextField("http://", text: $urlText)
+                        .keyboardType(.URL)
+                        .autocorrectionDisabled()
+                        .textInputAutocapitalization(.never)
+                        .textFieldStyle(.roundedBorder)
+                        .submitLabel(.done)
+                        .onSubmit(validateAndAdvance)
 
-                if let error = urlError {
-                    Text(error)
-                        .font(.caption)
-                        .foregroundStyle(.red)
+                    if let error = urlError {
+                        Text(error)
+                            .font(.caption)
+                            .foregroundStyle(.red)
+                    }
                 }
+                .transition(.opacity.combined(with: .move(edge: .top)))
             }
 
             footerNote("You can change this, add favourites, and restrict which domains the kiosk can navigate to in Settings → Dashboard.")
         }
+    }
+
+    private func urlModeCard(mode: URLSetupMode, icon: String, title: String, description: String) -> some View {
+        Button {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                urlSetupMode = mode
+                urlText = mode == .homeAssistant ? "http://homeassistant.local:8123" : ""
+                urlError = nil
+            }
+        } label: {
+            HStack(alignment: .top, spacing: 12) {
+                Image(systemName: urlSetupMode == mode ? "checkmark.circle.fill" : "circle")
+                    .foregroundStyle(urlSetupMode == mode ? Color.accentColor : .secondary)
+                    .imageScale(.large)
+                    .padding(.top, 1)
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(title)
+                        .font(.body.weight(.medium))
+                        .foregroundStyle(.primary)
+                    Text(description)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                Spacer()
+            }
+            .padding(12)
+            .background(.secondary.opacity(0.08), in: RoundedRectangle(cornerRadius: 12))
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: - Step 4: Idle screen
