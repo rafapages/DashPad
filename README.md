@@ -2,18 +2,21 @@
 
 **A native iOS/iPadOS app that turns an iPad into a dedicated, always-on Home Assistant dashboard.**
 
-![License: PolyForm NC](https://img.shields.io/badge/license-PolyForm%20NC-blue)
-![Platform: iOS/iPadOS 18+](https://img.shields.io/badge/platform-iOS%2FiPadOS%2018%2B-lightgrey)
-![Swift](https://img.shields.io/badge/Swift-5-orange)
+License: PolyForm NC
+Platform: iOS/iPadOS 18+
+Swift
 
 > Source-available, non-commercial. Free to view, build, and use personally. Building or shipping a commercial product from this code requires a separate license. See [License](#license).
 
 ---
 
-<!-- Hero screenshot / GIF goes here. Placeholder until real assets are added. -->
-<!-- ![DashPad kiosk, idle clock, and onboarding](docs/assets/hero.png) -->
+<p align="center">
+  <strong>▶ <a href="https://www.rafapages.com/dashpad/uploads/videos/dashpad.mp4">Watch DashPad in action</a></strong>
+</p>
 
 ---
+
+
 
 ## What it does
 
@@ -25,6 +28,8 @@ It is a general-purpose iPad kiosk browser. Home Assistant is the hero use case,
 
 ---
 
+
+
 ## Why not just use the HA app with Guided Access?
 
 The native HA app works fine as a browser, but it gives you no presence detection, no idle screen, and the Guided Access setup is manual and clunky. Every time you want to change something you are triple-clicking the side button and entering a system-level PIN.
@@ -32,6 +37,8 @@ The native HA app works fine as a browser, but it gives you no presence detectio
 The commercial iOS kiosk apps are priced and designed for retail and museum deployments. They are overkill for a single home iPad, and none of them combine camera-based presence detection with a privacy-first, fully local architecture.
 
 ---
+
+
 
 ## Features
 
@@ -51,11 +58,15 @@ The commercial iOS kiosk apps are priced and designed for retail and museum depl
 
 ---
 
+
+
 ## Roadmap
 
 - **Custom CSS/JS injection into the WebView** is planned but not yet shipped. It was removed pending proper testing of its security and stability implications. Once re-enabled it will let you hide the Home Assistant sidebar, increase font sizes for readability at a distance, or suppress UI elements that do not make sense on a permanently mounted display, all without modifying your Home Assistant installation.
 
 ---
+
+
 
 ## Requirements
 
@@ -66,7 +77,11 @@ The commercial iOS kiosk apps are priced and designed for retail and museum depl
 
 ---
 
+
+
 ## Getting Started
+
+
 
 ### Build and run
 
@@ -90,65 +105,91 @@ On first launch, an onboarding flow walks you through setup: setting your Home U
 
 ---
 
+
+
 ## Configuration
 
 Open the settings panel by **triple-tapping the bottom-right corner**. If an exit PIN is set, you will be prompted for it first.
 
 ### Dashboard
 
+
 | Setting         | Default                           | Description                                                                                                                      |
-| --------------- | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| Home URL        | `http://homeassistant.local:8123` | The dashboard URL loaded on launch and after connection failures.                                                              |
+| --------------- | --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| Home URL        | `http://homeassistant.local:8123` | The dashboard URL loaded on launch and after connection failures.                                                                |
 | Allowed domains | *(empty, allow all)*              | Comma-separated list of domains the WebView may navigate to. Useful if your dashboard links to external pages you want to block. |
-| Favourites      | *(empty)*                         | Saved URL list. Swipe right on any entry to set it as the Home URL; swipe left to delete.                                       |
+| Favourites      | *(empty)*                         | Saved URL list. Swipe right on any entry to set it as the Home URL; swipe left to delete.                                        |
+
+
+
 
 ### Presence
 
 **Presence Mode** picker, the first control in the Presence section:
 
-| Mode | Behaviour |
-| ---- | --------- |
-| Automatic (Camera) | Camera-based detection pipeline. See camera settings below. |
-| Schedule | Time-based Active/Idle transitions. Camera is not used. See schedule settings below. |
-| Always Active | Dashboard stays on at all times. No additional controls. |
+
+| Mode               | Behaviour                                                                            |
+| ------------------ | ------------------------------------------------------------------------------------ |
+| Automatic (Camera) | Camera-based detection pipeline. See camera settings below.                          |
+| Schedule           | Time-based Active/Idle transitions. Camera is not used. See schedule settings below. |
+| Always Active      | Dashboard stays on at all times. No additional controls.                             |
+
+
+
 
 #### Automatic (Camera) settings
 
-| Setting           | Default | Description                                                                                                                                                                       |
-| ----------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+
+| Setting           | Default | Description                                                                                                                                                                                   |
+| ----------------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Detection mode    | Body    | `Body` uses `VNDetectHumanRectanglesRequest`, which works for side profiles and people facing away. `Face` uses `VNDetectFaceRectanglesRequest`, which is faster but requires a visible face. |
-| Day sample rate   | 5 s     | Seconds between camera samples when the room is lit. Lower is more responsive; higher saves battery.                                                                             |
-| Night sample rate | 60 s    | Seconds between samples when the frame luminance is below the dark threshold.                                                                                                    |
-| Recheck interval  | 30 s    | How long after detecting presence before the camera checks again to confirm someone is still there.                                                                              |
-| Idle timeout      | 60 s    | Seconds of no detected presence before the idle screen appears.                                                                                                                  |
-| Dark threshold    | 20      | Average frame luminance (0 to 255) below which the room is considered dark. Dark frames skip the detector entirely.                                                              |
+| Day sample rate   | 5 s     | Seconds between camera samples when the room is lit. Lower is more responsive; higher saves battery.                                                                                          |
+| Night sample rate | 60 s    | Seconds between samples when the frame luminance is below the dark threshold.                                                                                                                 |
+| Recheck interval  | 30 s    | How long after detecting presence before the camera checks again to confirm someone is still there.                                                                                           |
+| Idle timeout      | 60 s    | Seconds of no detected presence before the idle screen appears.                                                                                                                               |
+| Dark threshold    | 20      | Average frame luminance (0 to 255) below which the room is considered dark. Dark frames skip the detector entirely.                                                                           |
+
+
+
 
 #### Schedule settings
 
-| Setting                 | Default  | Description                                                                                                                  |
-| ----------------------- | -------- | -------------------------------------------------------------------------------------------------------------------------- |
-| Manual Wake Timeout     | 120 s    | How long the dashboard stays visible after tapping the idle screen. Range: 30 to 600 s. Each tap resets the timer.         |
-| Same Schedule Every Day | On       | When on, a single set of Active windows applies to every day. When off, each day of the week has its own independent list.  |
+
+| Setting                 | Default  | Description                                                                                                                                                                                                                                                            |
+| ----------------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Manual Wake Timeout     | 120 s    | How long the dashboard stays visible after tapping the idle screen. Range: 30 to 600 s. Each tap resets the timer.                                                                                                                                                     |
+| Same Schedule Every Day | On       | When on, a single set of Active windows applies to every day. When off, each day of the week has its own independent list.                                                                                                                                             |
 | Active Windows          | *(none)* | One or more time ranges during which the dashboard is shown. Tap **+** to add a window; swipe left on a row to delete it. A window whose end time is earlier than its start time spans midnight (e.g. 22:00 to 07:00). Overlapping windows are rejected by the editor. |
+
+
+
 
 ### Idle screen
 
 Three mutually exclusive modes:
 
-| Mode       | Description                                                                   |
-| ---------- | ----------------------------------------------------------------------------- |
-| Clock      | Full-screen clock. Choose Digital or Analog style.                            |
-| Blank      | Pure black screen. Pair with a low idle brightness to minimise power draw.    |
-| Custom URL | Loads a URL in the WebView, useful for a dedicated screensaver dashboard.     |
+
+| Mode       | Description                                                                |
+| ---------- | -------------------------------------------------------------------------- |
+| Clock      | Full-screen clock. Choose Digital or Analog style.                         |
+| Blank      | Pure black screen. Pair with a low idle brightness to minimise power draw. |
+| Custom URL | Loads a URL in the WebView, useful for a dedicated screensaver dashboard.  |
+
+
+
 
 ### Brightness
+
 
 | Setting           | Default | Description                                    |
 | ----------------- | ------- | ---------------------------------------------- |
 | Active brightness | 80%     | Screen brightness when the dashboard is shown. |
 | Idle brightness   | 15%     | Screen brightness on the idle screen.          |
 
+
 ---
+
+
 
 ## Architecture
 
@@ -167,17 +208,19 @@ DashPad/
 └── Settings/             SwiftUI settings panel, PIN entry and setup
 ```
 
-**`AppSettings`** (`AppSettings.swift`) is the single source of truth for all user configuration. It is an `@Observable` class injected into the SwiftUI environment at the root and read directly by any view or manager that needs it. Settings are persisted to `UserDefaults` via `didSet` observers. The exit PIN is the only value stored in Keychain.
+`AppSettings` (`AppSettings.swift`) is the single source of truth for all user configuration. It is an `@Observable` class injected into the SwiftUI environment at the root and read directly by any view or manager that needs it. Settings are persisted to `UserDefaults` via `didSet` observers. The exit PIN is the only value stored in Keychain.
 
-**`KioskManager`** (`KioskManager.swift`) is the central coordinator. It drives the display state machine (`active` / `idle`), manages all three presence modes (camera pipeline, schedule timer, or always-active), handles the secret gesture and PIN flow, and manages screen brightness transitions. Views observe it via the SwiftUI environment.
+`KioskManager` (`KioskManager.swift`) is the central coordinator. It drives the display state machine (`active` / `idle`), manages all three presence modes (camera pipeline, schedule timer, or always-active), handles the secret gesture and PIN flow, and manages screen brightness transitions. Views observe it via the SwiftUI environment.
 
-**`PresenceDetector`** (`Presence/PresenceDetector.swift`) owns everything camera-related. `KioskManager` calls it with `captureOnce()` whenever the state machine wants a sample. It starts a fresh `AVCaptureSession`, waits for auto-exposure to settle, grabs one frame, runs the Vision request, tears the session down, and calls back with a result. It knows nothing about the state machine; it just captures and reports.
+`PresenceDetector` (`Presence/PresenceDetector.swift`) owns everything camera-related. `KioskManager` calls it with `captureOnce()` whenever the state machine wants a sample. It starts a fresh `AVCaptureSession`, waits for auto-exposure to settle, grabs one frame, runs the Vision request, tears the session down, and calls back with a result. It knows nothing about the state machine; it just captures and reports.
 
-**`ContentView`** (`ContentView.swift`) is a thin switcher. It reads `KioskManager.displayState` and renders either `KioskBrowserView` (active) or `IdleView` (idle), plus the PIN overlay when needed.
+`ContentView` (`ContentView.swift`) is a thin switcher. It reads `KioskManager.displayState` and renders either `KioskBrowserView` (active) or `IdleView` (idle), plus the PIN overlay when needed.
 
 For a full architectural narrative, see [docs/architecture.md](docs/architecture.md). For a deeper walkthrough of the presence pipeline specifically, see [docs/presence-pipeline.md](docs/presence-pipeline.md).
 
 ---
+
+
 
 ## Privacy
 
@@ -194,19 +237,27 @@ Because the source is available, you can verify every one of these claims in the
 
 ---
 
-## App Store
 
-A signed binary is available on the App Store as a one-time purchase, for those who want the convenience of an installed, signed build without compiling it themselves. The link will be added on launch. It is built from this same codebase.
+
+## Try it
+
+**TestFlight beta — available now.** Want to run a signed build today without compiling it yourself? Join the public beta. <!-- TODO: add TestFlight link --> *(invite link coming shortly)*
+
+**App Store — coming soon.** A signed binary will be available on the App Store as a one-time purchase, for those who want the convenience of an installed, signed build. The link will be added on launch. It is built from this same codebase.
 
 ---
+
+
 
 ## License
 
 DashPad is **source-available, not open source**: free to view, build, and use for personal and other non-commercial purposes under the [PolyForm Noncommercial License 1.0.0](LICENSE).
 
-Building, distributing, or selling a product based on this code requires a separate commercial license. These are available at affordable rates; see [COMMERCIAL-LICENSE.md](COMMERCIAL-LICENSE.md) or contact **dashpad@rafapages.com**.
+Building, distributing, or selling a product based on this code requires a separate commercial license. These are available at affordable rates; see [COMMERCIAL-LICENSE.md](COMMERCIAL-LICENSE.md) or contact **[dashpad@rafapages.com](mailto:dashpad@rafapages.com)**.
 
 ---
+
+
 
 ## Contributing
 
