@@ -11,7 +11,7 @@ Swift
 ---
 
 <p align="center">
-  <strong>▶ <a href="https://www.rafapages.com/dashpad/uploads/videos/dashpad.mp4">Watch DashPad in action</a></strong>
+  <video src="https://raw.githubusercontent.com/rafapages/rafapages.github.io/main/dashpad/uploads/videos/dashpad.mp4" controls muted playsinline width="80%"></video>
 </p>
 
 ---
