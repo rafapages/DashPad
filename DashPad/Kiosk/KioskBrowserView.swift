@@ -1,4 +1,7 @@
-// KioskBrowserView.swift — WKWebView wrapper for the main dashboard.
+// DashPad: https://github.com/rafapages/DashPad
+// Licensed under PolyForm Noncommercial 1.0.0. Commercial use requires a separate license: dashpad@rafapages.com
+
+// KioskBrowserView.swift - WKWebView wrapper for the main dashboard.
 // The WebView is created once and kept alive for the full app session so that navigating
 // back from idle never triggers a full page reload.
 

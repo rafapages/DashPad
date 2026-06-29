@@ -1,4 +1,7 @@
-// KioskManager.swift — central coordinator for the app.
+// DashPad: https://github.com/rafapages/DashPad
+// Licensed under PolyForm Noncommercial 1.0.0. Commercial use requires a separate license: dashpad@rafapages.com
+
+// KioskManager.swift - central coordinator for the app.
 // Owns the active presence mode (camera pipeline, schedule timer, or always-active),
 // drives the active/idle display state machine, and manages the PIN/settings access flow.
 // Injected into the SwiftUI environment; views call its public methods rather than
@@ -148,7 +151,7 @@ class KioskManager {
     // MARK: - Touch-to-wake (camera mode)
 
     /// Wakes the display from idle in response to a screen tap. Only acts in Automatic
-    /// (camera) mode — the presence detector must be active. For Schedule mode use `manualWake()`.
+    /// (camera) mode - the presence detector must be active. For Schedule mode use `manualWake()`.
     func handleScreenTap() {
         guard presenceDetector != nil else { return }
         switch presenceState {
@@ -384,7 +387,7 @@ class KioskManager {
     /// visible so the idle timer cannot fire during active use of the app. Resumes with a
     /// fresh active state the moment all UI is dismissed.
     /// Exception: when debug mode is active the pipeline keeps running so the debug view
-    /// shows live detections — display/brightness transitions are suppressed separately.
+    /// shows live detections - display/brightness transitions are suppressed separately.
     /// No-op in schedule and always-active modes.
     private func syncPresenceWithAppUI() {
         guard presenceDetector != nil else { return }
@@ -407,8 +410,8 @@ class KioskManager {
     private func transitionDisplay(to state: DisplayState) {
         guard !showingSettings, !showingPINEntry else { return }
         guard displayState != state else { return }
-        // Active is slightly snappier (0.4 s) — the user just arrived and wants the screen now.
-        // Idle is a touch slower (0.6 s) — a gradual fade feels more natural when the room empties.
+        // Active is slightly snappier (0.4 s) - the user just arrived and wants the screen now.
+        // Idle is a touch slower (0.6 s) - a gradual fade feels more natural when the room empties.
         withAnimation(.easeInOut(duration: state == .active ? 0.4 : 0.6)) { displayState = state }
         let brightness = state == .active ? settings?.activeBrightness : settings?.idleBrightness
         if let b = brightness { mainScreen?.brightness = b }

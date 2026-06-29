@@ -1,4 +1,7 @@
-// PresenceDebugViewModel.swift — observable state for the presence debug overlay in settings.
+// DashPad: https://github.com/rafapages/DashPad
+// Licensed under PolyForm Noncommercial 1.0.0. Commercial use requires a separate license: dashpad@rafapages.com
+
+// PresenceDebugViewModel.swift - observable state for the presence debug overlay in settings.
 // KioskManager holds a weak reference to this; when debug mode is turned off the reference
 // is cleared to nil, which stops all debug output with no additional coordination needed.
 

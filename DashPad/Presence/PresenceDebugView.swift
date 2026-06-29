@@ -1,4 +1,7 @@
-// PresenceDebugView.swift — developer debug overlay for the Automatic (camera) presence mode.
+// DashPad: https://github.com/rafapages/DashPad
+// Licensed under PolyForm Noncommercial 1.0.0. Commercial use requires a separate license: dashpad@rafapages.com
+
+// PresenceDebugView.swift - developer debug overlay for the Automatic (camera) presence mode.
 // Embedded inside the Presence settings section when Debug Mode is toggled on.
 // Displays the last captured frame with Vision bounding boxes, live status rows, and an event log.
 
@@ -64,13 +67,13 @@ struct PresenceDebugSections: View {
     }
 
     private var lastSampleText: String {
-        guard viewModel.lastSampleDate != .distantPast else { return "—" }
+        guard viewModel.lastSampleDate != .distantPast else { return "-" }
         let age = now.timeIntervalSince(viewModel.lastSampleDate)
         return String(format: "%.1fs ago", max(0, age))
     }
 
     private var timerText: String {
-        guard let start = km.stateTimerStartDate else { return "—" }
+        guard let start = km.stateTimerStartDate else { return "-" }
         let elapsed = now.timeIntervalSince(start)
         switch km.presenceState {
         case .active:
@@ -78,7 +81,7 @@ struct PresenceDebugSections: View {
         case .countingDown:
             return String(format: "%.0fs / %.0fs (countdown)", elapsed, settings.idleTimeout)
         default:
-            return "—"
+            return "-"
         }
     }
 
@@ -156,7 +159,7 @@ private struct PhotoDebugCard: View {
                         }
                 }
             } else {
-                Text("No photo yet — waiting for first sample")
+                Text("No photo yet, waiting for first sample")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

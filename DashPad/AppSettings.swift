@@ -1,4 +1,7 @@
-// AppSettings.swift — single source of truth for all user configuration.
+// DashPad: https://github.com/rafapages/DashPad
+// Licensed under PolyForm Noncommercial 1.0.0. Commercial use requires a separate license: dashpad@rafapages.com
+
+// AppSettings.swift - single source of truth for all user configuration.
 // Every property persists immediately via didSet → UserDefaults (or Keychain for the PIN).
 // Injected into the SwiftUI environment at the root; read by views and KioskManager alike.
 
@@ -77,7 +80,7 @@ class AppSettings {
 
     private enum Key: String {
         case homeURL, idleTimeout, idleScreenType, idleCustomURL, clockStyle
-        case presenceEnabled // legacy key — do not use, kept for migration reads only
+        case presenceEnabled // legacy key - do not use, kept for migration reads only
         case presenceMode, weeklySchedule, manualWakeTimeout
         case idleBrightness, activeBrightness, cameraSampleRate, nightSampleRate
         case presenceRecheckInterval, darkLuminanceThreshold

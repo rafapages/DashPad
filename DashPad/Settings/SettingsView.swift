@@ -1,4 +1,7 @@
-// SettingsView.swift — NavigationSplitView settings panel, accessed via the secret gesture.
+// DashPad: https://github.com/rafapages/DashPad
+// Licensed under PolyForm Noncommercial 1.0.0. Commercial use requires a separate license: dashpad@rafapages.com
+
+// SettingsView.swift - NavigationSplitView settings panel, accessed via the secret gesture.
 // All user-facing configuration lives here. Persisted immediately to AppSettings on change.
 
 import Combine
@@ -12,7 +15,6 @@ private enum SettingsCategory: String, CaseIterable, Identifiable {
     case kioskLock  = "Kiosk Lock"
     case presence   = "Presence"
     case brightness = "Brightness"
-    // BETA: hidden — case injection  = "Injection"
 
     var id: Self { self }
 
@@ -23,7 +25,6 @@ private enum SettingsCategory: String, CaseIterable, Identifiable {
         case .presence:   "person.fill.viewfinder"
         case .idleScreen: "moon.fill"
         case .brightness: "sun.max.fill"
-        // BETA: hidden — case .injection:  "chevron.left.slash.chevron.right"
         }
     }
 
@@ -34,7 +35,6 @@ private enum SettingsCategory: String, CaseIterable, Identifiable {
         case .presence:   .purple
         case .idleScreen: .indigo
         case .brightness: .yellow
-        // BETA: hidden — case .injection:  .green
         }
     }
 }
@@ -142,7 +142,6 @@ struct SettingsView: View {
         case .kioskLock:  kioskLockDetail(s)
         case .presence:   presenceDetail(s)
         case .brightness: brightnessDetail(s)
-        // BETA: hidden — case .injection:  injectionDetail(s)
         }
     }
 
@@ -361,13 +360,13 @@ struct SettingsView: View {
                 }
             }
         } footer: {
-            Text("Body detects people by silhouette — works for side profiles and people facing away. Face requires a visible face and is less likely to trigger on background movement.")
+            Text("Body detects people by silhouette, so it works for side profiles and people facing away. Face requires a visible face and is less likely to trigger on background movement.")
         }
         Section {
             SliderRow(label: "Day Sample Rate", value: s.cameraSampleRate, range: 1...30, step: 1, unit: "s")
             SliderRow(label: "Night Sample Rate", value: s.nightSampleRate, range: 10...300, step: 5, unit: "s")
         } footer: {
-            Text("How often the camera fires when the room is lit (day) vs dark (night). A single photo is taken each time — the camera is active for ~3 seconds per sample.")
+            Text("How often the camera fires when the room is lit (day) vs dark (night). A single photo is taken each time, and the camera is active for about 3 seconds per sample.")
         }
         Section {
             SliderRow(label: "Presence Recheck", value: s.presenceRecheckInterval, range: 5...120, step: 5, unit: "s")
@@ -502,7 +501,7 @@ struct SettingsView: View {
                     }
                 }
             } footer: {
-                Text("Loads a web page when idle — useful for dashboards, photo frames, or other always-on displays.")
+                Text("Loads a web page when idle - useful for dashboards, photo frames, or other always-on displays.")
             }
 
             Section {

@@ -1,4 +1,7 @@
-// IdleView.swift — shown whenever KioskManager.displayState is .idle.
+// DashPad: https://github.com/rafapages/DashPad
+// Licensed under PolyForm Noncommercial 1.0.0. Commercial use requires a separate license: dashpad@rafapages.com
+
+// IdleView.swift - shown whenever KioskManager.displayState is .idle.
 // Switches between the three idle screen modes (clock, blank, custom URL).
 
 import SwiftUI

@@ -1,3 +1,6 @@
+// DashPad: https://github.com/rafapages/DashPad
+// Licensed under PolyForm Noncommercial 1.0.0. Commercial use requires a separate license: dashpad@rafapages.com
+
 import AVFoundation
 import SwiftUI
 
@@ -23,7 +26,7 @@ struct OnboardingView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Back button — visible on steps 2–6
+            // Back button - visible on steps 2–6
             if step > 1 {
                 HStack {
                     Button(action: goBack) {
@@ -39,7 +42,7 @@ struct OnboardingView: View {
                 .padding(.bottom, 4)
             }
 
-            // Scrollable step content (no buttons — those are in the fixed footer)
+            // Scrollable step content (no buttons - those are in the fixed footer)
             ScrollView {
                 VStack(spacing: 0) {
                     stepContent
@@ -120,7 +123,7 @@ struct OnboardingView: View {
                 }
             }
         default:
-            primaryButton("All done — open my display", action: complete)
+            primaryButton("All done, open my display", action: complete)
                 .frame(maxWidth: .infinity)
         }
     }
@@ -247,10 +250,10 @@ struct OnboardingView: View {
             stepHeader(
                 icon: "person.fill.viewfinder",
                 title: "Presence detection",
-                body: "DashPad can use the front camera to detect when someone is nearby — showing your content when you're present, and switching to an idle screen when you walk away."
+                body: "DashPad can use the front camera to detect when someone is nearby, showing your content when you're present and switching to an idle screen when you walk away."
             )
 
-            InfoBox(title: "How it works — and what it doesn't do") {
+            InfoBox(title: "How it works, and what it doesn't do") {
                 VStack(alignment: .leading, spacing: 8) {
                     bulletRow("The camera fires for ~3 seconds per sample, then shuts off")
                     bulletRow("Frames are processed on-device and immediately discarded")
@@ -371,9 +374,9 @@ struct OnboardingView: View {
             )
 
             VStack(spacing: 10) {
-                idleOptionCard(type: .clock,     description: "Digital or analogue clock — easy to read at a distance.")
-                idleOptionCard(type: .blank,     description: "Solid black screen — lowest power draw.")
-                idleOptionCard(type: .customURL, description: "Load a different page — slideshow, weather, or anything you like.")
+                idleOptionCard(type: .clock,     description: "Digital or analogue clock, easy to read at a distance.")
+                idleOptionCard(type: .blank,     description: "Solid black screen for the lowest power draw.")
+                idleOptionCard(type: .customURL, description: "Load a different page: a slideshow, weather, or anything you like.")
             }
 
             footerNote("Changeable anytime in Settings → Idle Screen.")
@@ -449,7 +452,7 @@ struct OnboardingView: View {
                 gestureRow(
                     icon: "lock.open.fill",
                     title: "Forgot your PIN?",
-                    description: "Tap 'Forgot PIN?' on the lock screen — Face ID or your device passcode will unlock it."
+                    description: "Tap 'Forgot PIN?' on the lock screen, then Face ID or your device passcode will unlock it."
                 )
             }
 

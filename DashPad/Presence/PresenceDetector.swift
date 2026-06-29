@@ -1,3 +1,6 @@
+// DashPad: https://github.com/rafapages/DashPad
+// Licensed under PolyForm Noncommercial 1.0.0. Commercial use requires a separate license: dashpad@rafapages.com
+
 import AVFoundation
 import CoreImage
 import UIKit
@@ -19,10 +22,10 @@ class PresenceDetector: NSObject {
     private let ciContext = CIContext(options: [.useSoftwareRenderer: false])
 
     // Seconds the session runs before we accept a frame. Gives AE time to
-    // converge from a cold start — 3 s is comfortable for any lighting condition.
+    // converge from a cold start - 3 s is comfortable for any lighting condition.
     private let warmupDuration: TimeInterval = 3
 
-    // Main thread only — prevents overlapping captures.
+    // Main thread only - prevents overlapping captures.
     private var captureInProgress = false
 
     // sessionQueue only.
@@ -190,7 +193,7 @@ extension PresenceDetector: AVCaptureVideoDataOutputSampleBufferDelegate {
         readyToCapture = false
         didCapture = true
 
-        // Tear down the session — LED off after this returns.
+        // Tear down the session - LED off after this returns.
         let session = pendingSession
         pendingSession = nil
         sessionQueue.async { session?.stopRunning() }
@@ -208,7 +211,7 @@ extension PresenceDetector: AVCaptureVideoDataOutputSampleBufferDelegate {
             return
         }
 
-        // Vision is synchronous — runs on sessionQueue while pixelBuffer is valid.
+        // Vision is synchronous - runs on sessionQueue while pixelBuffer is valid.
         detectPresence(in: pixelBuffer) { [weak self] observations in
             DispatchQueue.main.async {
                 self?.captureInProgress = false

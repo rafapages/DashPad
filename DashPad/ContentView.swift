@@ -1,4 +1,7 @@
-// ContentView.swift — root view; a thin switcher between KioskBrowserView (active) and
+// DashPad: https://github.com/rafapages/DashPad
+// Licensed under PolyForm Noncommercial 1.0.0. Commercial use requires a separate license: dashpad@rafapages.com
+
+// ContentView.swift - root view; a thin switcher between KioskBrowserView (active) and
 // IdleView (idle). All logic lives in KioskManager; this file contains no business logic.
 
 import SwiftUI

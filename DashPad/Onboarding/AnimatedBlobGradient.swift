@@ -1,3 +1,6 @@
+// DashPad: https://github.com/rafapages/DashPad
+// Licensed under PolyForm Noncommercial 1.0.0. Commercial use requires a separate license: dashpad@rafapages.com
+
 import SwiftUI
 
 // MARK: - Blob definition
@@ -16,19 +19,19 @@ private struct Blob {
 private let blurFraction: CGFloat = 0.13
 
 private let keyframes: [[Blob]] = [
-    // Frame 1 — yellow centre-left, magenta top-right, magenta bottom-centre
+    // Frame 1 - yellow centre-left, magenta top-right, magenta bottom-centre
     [
         Blob(position: UnitPoint(x: 0.33, y: 0.41), color: Color(hex: "#F6C944"), radius: 0.60),
         Blob(position: UnitPoint(x: 0.85, y: 0.28), color: Color(hex: "#FC4B7F"), radius: 0.55),
         Blob(position: UnitPoint(x: 0.52, y: 0.78), color: Color(hex: "#FC4B7F"), radius: 0.52),
     ],
-    // Frame 2 — yellow bottom-right, magenta top-left, magenta centre-left
+    // Frame 2 - yellow bottom-right, magenta top-left, magenta centre-left
     [
         Blob(position: UnitPoint(x: 0.78, y: 0.88), color: Color(hex: "#F6C944"), radius: 0.60),
         Blob(position: UnitPoint(x: 0.28, y: 0.52), color: Color(hex: "#FC4B7F"), radius: 0.55),
         Blob(position: UnitPoint(x: 0.14, y: 0.40), color: Color(hex: "#FC4B7F"), radius: 0.52),
     ],
-    // Frame 3 — yellow centre-right, magenta far top-right, magenta bottom-left
+    // Frame 3 - yellow centre-right, magenta far top-right, magenta bottom-left
     [
         Blob(position: UnitPoint(x: 0.55, y: 0.72), color: Color(hex: "#F6C944"), radius: 0.60),
         Blob(position: UnitPoint(x: 0.95, y: 0.25), color: Color(hex: "#FC4B7F"), radius: 0.55),
@@ -47,13 +50,13 @@ struct AnimatedBlobGradient: View {
     var body: some View {
         GeometryReader { geo in
             ZStack {
-                // Dark base — matches SVG background #141516
+                // Dark base - matches SVG background #141516
                 Color(hex: "#141516")
 
-                // First pass — normal blend
+                // First pass - normal blend
                 blobLayer(blobs: blobs, size: geo.size)
 
-                // Second pass — color-dodge, matching SVG mix-blend-mode
+                // Second pass - color-dodge, matching SVG mix-blend-mode
                 blobLayer(blobs: blobs, size: geo.size)
                     .blendMode(.colorDodge)
             }

@@ -1,0 +1,40 @@
+# Xcode
+build/
+DerivedData/
+*.xcuserstate
+*.xcuserdatad
+xcuserdata/
+*.moved-aside
+*.pbxuser
+*.mode1v3
+*.mode2v3
+*.perspectivev3
+
+# macOS
+.DS_Store
+
+# Swift Package Manager
+.build/
+.swiftpm/
+
+# CocoaPods (not used, kept as a safety net)
+Pods/
+
+# Secrets (never commit)
+*.p12
+*.cer
+*.mobileprovision
+AuthKey_*.p8
+*.env
+
+# Misc build artifacts
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# Internal planning docs (kept private)
+docs/specs/
+
+# Local Claude Code project rules (not shipped; contributors use their own)
+CLAUDE.md

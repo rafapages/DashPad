@@ -1,4 +1,7 @@
-// PINEntryOverlay.swift — full-screen PIN entry shown over the dashboard when the secret
+// DashPad: https://github.com/rafapages/DashPad
+// Licensed under PolyForm Noncommercial 1.0.0. Commercial use requires a separate license: dashpad@rafapages.com
+
+// PINEntryOverlay.swift - full-screen PIN entry shown over the dashboard when the secret
 // gesture fires and a PIN is configured. Also contains PINSetupView (the two-phase
 // confirmation sheet used when setting or changing the PIN).
 
@@ -217,7 +220,7 @@ struct PINSetupView: View {
                     dotRow
                         .offset(x: shakeAmount)
 
-                    Text(showError ? "PINs don't match — try again" : " ")
+                    Text(showError ? "PINs don't match, try again" : " ")
                         .font(.callout)
                         .foregroundStyle(.red)
                         .animation(.default, value: showError)

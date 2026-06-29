@@ -1,4 +1,7 @@
-// ClockView.swift — full-screen idle clock, available in digital and analogue styles.
+// DashPad: https://github.com/rafapages/DashPad
+// Licensed under PolyForm Noncommercial 1.0.0. Commercial use requires a separate license: dashpad@rafapages.com
+
+// ClockView.swift - full-screen idle clock, available in digital and analogue styles.
 
 import Combine
 import SwiftUI
