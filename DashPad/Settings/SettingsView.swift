@@ -4,6 +4,7 @@
 // SettingsView.swift - NavigationSplitView settings panel, accessed via the secret gesture.
 // All user-facing configuration lives here. Persisted immediately to AppSettings on change.
 
+import AVFoundation
 import Combine
 import SwiftUI
 
@@ -58,7 +59,9 @@ private struct CategoryIcon: View {
 struct SettingsView: View {
     @Environment(AppSettings.self) var settings
     @Environment(KioskManager.self) var kioskManager
+    @Environment(\.scenePhase) private var scenePhase
     @State private var selectedCategory: SettingsCategory? = .dashboard
+    @State private var cameraAuthorizationStatus = AVCaptureDevice.authorizationStatus(for: .video)
     @State private var showingAddFavourite = false
     @State private var newFavouriteURL = ""
     @State private var showingPINSetup = false
@@ -309,6 +312,11 @@ struct SettingsView: View {
         .onChange(of: debugModeEnabled) { _, enabled in
             kioskManager.debugViewModel = enabled ? debugViewModel : nil
         }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active {
+                cameraAuthorizationStatus = AVCaptureDevice.authorizationStatus(for: .video)
+            }
+        }
         .sheet(item: $addWindowRequest) { request in
             NavigationStack {
                 ScheduleWindowEditView(
@@ -338,6 +346,27 @@ struct SettingsView: View {
 
     @ViewBuilder
     private func automaticPresenceControls(_ s: Bindable<AppSettings>) -> some View {
+        if cameraAuthorizationStatus == .denied || cameraAuthorizationStatus == .restricted {
+            Section {
+                Label {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Camera access is off")
+                        Text("Presence detection can't work until camera access is allowed for DashPad.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                } icon: {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.orange)
+                }
+                Button("Open Settings") {
+                    if let url = URL(string: UIApplication.openSettingsURLString) {
+                        UIApplication.shared.open(url)
+                    }
+                }
+            }
+        }
+
         Section {
             Toggle(isOn: $debugModeEnabled) {
                 VStack(alignment: .leading, spacing: 2) {

@@ -20,7 +20,6 @@ struct OnboardingView: View {
     @State private var urlError: String? = nil
     @State private var urlSetupMode: URLSetupMode? = nil
     @State private var selectedIdleType: IdleScreenType = .clock
-    @State private var cameraAccessDenied = false
     @State private var showingPINSetup = false
     @State private var pinBeforeSetup = ""
 
@@ -95,15 +94,8 @@ struct OnboardingView: View {
             primaryButton("Get started", action: advance)
                 .frame(maxWidth: .infinity)
         case 2:
-            HStack(spacing: 8) {
-                secondaryButton("Skip for now") {
-                    settings.presenceMode = .alwaysActive
-                    advance()
-                }
-                primaryButton(cameraAccessDenied ? "Continue" : "Enable & allow access") {
-                    cameraAccessDenied ? advance() : requestCamera()
-                }
-            }
+            primaryButton("Continue", action: requestCamera)
+                .frame(maxWidth: .infinity)
         case 3:
             primaryButton("Continue", action: validateAndAdvance)
                 .frame(maxWidth: .infinity)
@@ -164,12 +156,8 @@ struct OnboardingView: View {
     private func requestCamera() {
         AVCaptureDevice.requestAccess(for: .video) { granted in
             DispatchQueue.main.async {
-                if granted {
-                    settings.presenceMode = .automatic
-                    advance()
-                } else {
-                    withAnimation { cameraAccessDenied = true }
-                }
+                settings.presenceMode = granted ? .automatic : .alwaysActive
+                advance()
             }
         }
     }
@@ -263,21 +251,11 @@ struct OnboardingView: View {
                 }
             }
 
-            if cameraAccessDenied {
-                HStack(spacing: 10) {
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .foregroundStyle(.orange)
-                    Text("Camera access was denied. You can enable it later in iOS Settings.")
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                .padding(12)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(.orange.opacity(0.1), in: RoundedRectangle(cornerRadius: 10))
-            }
-
-            footerNote("Not ready to decide? You can skip this and turn it on later in Settings → Presence.")
+            Text("If you decline, presence detection stays off — you can turn it on anytime in Settings → Presence.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 
