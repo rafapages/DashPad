@@ -12,9 +12,9 @@ import Vision
 // MARK: - Debug sections (dropped into presenceDetail's Form)
 
 struct PresenceDebugSections: View {
-    @Environment(AppSettings.self) private var settings
-    @Environment(KioskManager.self) private var km
-    @Bindable var viewModel: PresenceDebugViewModel
+    @EnvironmentObject private var settings: AppSettings
+    @EnvironmentObject private var km: KioskManager
+    @ObservedObject var viewModel: PresenceDebugViewModel
 
     @State private var now = Date()
     private let ticker = Timer.publish(every: 0.5, on: .main, in: .common).autoconnect()
@@ -207,7 +207,7 @@ private struct LuminanceBar: View {
 // MARK: - Event log content
 
 private struct EventLogContent: View {
-    @Bindable var viewModel: PresenceDebugViewModel
+    @ObservedObject var viewModel: PresenceDebugViewModel
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -225,7 +225,7 @@ private struct EventLogContent: View {
                         }
                         Color.clear.frame(height: 1).id("log-bottom")
                     }
-                    .onChange(of: viewModel.logEntries.count) { _, _ in
+                    .onChangeCompat(of: viewModel.logEntries.count) { _ in
                         withAnimation { proxy.scrollTo("log-bottom") }
                     }
                 }

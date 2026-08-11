@@ -3,7 +3,7 @@
 **A native iOS/iPadOS app that turns an iPad into a dedicated, always-on Home Assistant dashboard.**
 
 License: PolyForm NC
-Platform: iOS/iPadOS 18+
+Platform: iOS/iPadOS 16+
 Swift
 
 > Source-available, non-commercial. Free to view, build, and use personally. Building or shipping a commercial product from this code requires a separate license. See [License](#license).
@@ -75,9 +75,23 @@ The commercial iOS kiosk apps are priced and designed for retail and museum depl
 ## Requirements
 
 - Xcode 16 or later
-- iOS / iPadOS 18.0 deployment target (developed and tested on iOS 26)
+- iOS / iPadOS 16.0 deployment target (developed and tested on iOS 26)
 - An Apple ID for code signing
 - A **physical iPad**. The simulator has no camera and cannot run the presence detection pipeline.
+
+### Supported iPads
+
+The iPadOS 16 floor covers every iPad back to the iPad Air 2 (2014), iPad mini 4, iPad 5th
+generation and the original iPad Pro. Newer APIs are used where available and fall back to the
+standard system appearance elsewhere, so the app looks its best on iOS 26 but is fully functional
+below it.
+
+Bear in mind that the oldest supported devices are constrained for reasons that have nothing to
+do with the deployment target. The iPad Air 2 and iPad 5th generation have 2 GB of RAM, and a
+Home Assistant dashboard in `WKWebView` alongside a live camera session is close to their limit;
+if you hit memory pressure, prefer Schedule mode over Automatic (Camera). Vision's body detection
+is also considerably heavier than face detection on an A8X, so `Face` mode and a slower sample
+rate are the better trade on that class of hardware.
 
 ---
 
@@ -212,7 +226,7 @@ DashPad/
 └── Settings/             SwiftUI settings panel, PIN entry and setup
 ```
 
-`AppSettings` (`AppSettings.swift`) is the single source of truth for all user configuration. It is an `@Observable` class injected into the SwiftUI environment at the root and read directly by any view or manager that needs it. Settings are persisted to `UserDefaults` via `didSet` observers. The exit PIN is the only value stored in Keychain.
+`AppSettings` (`AppSettings.swift`) is the single source of truth for all user configuration. It is an `ObservableObject` injected into the SwiftUI environment at the root and read directly by any view or manager that needs it. Settings are persisted to `UserDefaults` via `didSet` observers. The exit PIN is the only value stored in Keychain.
 
 `KioskManager` (`KioskManager.swift`) is the central coordinator. It drives the display state machine (`active` / `idle`), manages all three presence modes (camera pipeline, schedule timer, or always-active), handles the secret gesture and PIN flow, and manages screen brightness transitions. Views observe it via the SwiftUI environment.
 

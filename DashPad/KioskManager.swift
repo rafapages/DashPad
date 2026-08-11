@@ -8,6 +8,7 @@
 // modifying state directly.
 
 import AVFoundation
+import Combine
 import LocalAuthentication
 import SwiftUI
 import UIKit
@@ -20,19 +21,18 @@ enum PresenceState {
     case idle, sampling, active, rechecking, countingDown
 }
 
-@Observable
-class KioskManager {
-    var displayState: DisplayState = .active
-    var presenceState: PresenceState = .idle
-    var showingPINEntry = false {
+class KioskManager: ObservableObject {
+    @Published var displayState: DisplayState = .active
+    @Published var presenceState: PresenceState = .idle
+    @Published var showingPINEntry = false {
         didSet { syncPresenceWithAppUI() }
     }
-    var showingSettings = false {
+    @Published var showingSettings = false {
         didSet { syncPresenceWithAppUI() }
     }
-    var isKioskModeActive = false
+    @Published var isKioskModeActive = false
 
-    var debugViewModel: PresenceDebugViewModel? {
+    @Published var debugViewModel: PresenceDebugViewModel? {
         didSet {
             guard showingSettings || showingPINEntry, presenceDetector != nil else { return }
             if debugViewModel != nil {
@@ -44,8 +44,14 @@ class KioskManager {
             }
         }
     }
+    @Published private(set) var stateTimerStartDate: Date?
+
+    // Deliberately not @Published. ObservableObject invalidates every observing view on any
+    // published change, and `lastLuminance` is rewritten on every camera sample - publishing it
+    // would redraw the whole view tree several times a minute for no one's benefit. Neither
+    // property is read by a view: the debug overlay reads its own copy of the luminance from
+    // PresenceDebugViewModel, and `manualWakeUntil` is internal to the schedule state machine.
     private(set) var lastLuminance: Double = 0
-    private(set) var stateTimerStartDate: Date?
     /// Non-nil while a tap-to-wake is in progress in Schedule mode. Cleared by
     /// `evaluateSchedule()` once the date is passed, or when the mode changes.
     private(set) var manualWakeUntil: Date? = nil

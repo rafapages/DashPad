@@ -6,8 +6,8 @@ import SwiftUI
 struct BrowserDrawer: View {
     var webController: WebViewController
 
-    @Environment(KioskManager.self) private var kioskManager
-    @Environment(AppSettings.self) private var settings
+    @EnvironmentObject private var kioskManager: KioskManager
+    @EnvironmentObject private var settings: AppSettings
 
     @State private var isOpen = false
     @State private var dragOffset: CGFloat = 0
@@ -163,8 +163,8 @@ private struct DrawerPanel: View {
     var webController: WebViewController
     var onAction: (_ delayedClose: Bool) -> Void
 
-    @Environment(KioskManager.self) private var kioskManager
-    @Environment(AppSettings.self) private var settings
+    @EnvironmentObject private var kioskManager: KioskManager
+    @EnvironmentObject private var settings: AppSettings
 
     var body: some View {
         VStack(spacing: 0) {

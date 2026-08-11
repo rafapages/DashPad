@@ -8,7 +8,7 @@ import SwiftUI
 import WebKit
 
 struct IdleView: View {
-    @Environment(AppSettings.self) var settings
+    @EnvironmentObject var settings: AppSettings
 
     var body: some View {
         ZStack {
@@ -51,5 +51,5 @@ private struct IdleWebView: UIViewRepresentable {
 
 #Preview {
     IdleView()
-        .environment(AppSettings())
+        .environmentObject(AppSettings())
 }

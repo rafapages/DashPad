@@ -7,8 +7,8 @@
 import SwiftUI
 
 struct ContentView: View {
-    @Environment(KioskManager.self) var kioskManager
-    @Environment(AppSettings.self) var settings
+    @EnvironmentObject var kioskManager: KioskManager
+    @EnvironmentObject var settings: AppSettings
 
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
     @State private var showingOnboarding = false
@@ -54,15 +54,15 @@ struct ContentView: View {
                     .zIndex(10)
             }
         }
-        .sheet(isPresented: Bindable(kioskManager).showingSettings) {
+        .sheet(isPresented: $kioskManager.showingSettings) {
             SettingsView()
         }
         .sheet(isPresented: $showingOnboarding) {
             OnboardingView(onComplete: {
                 hasCompletedOnboarding = true
             })
-            .environment(settings)
-            .environment(kioskManager)
+            .environmentObject(settings)
+            .environmentObject(kioskManager)
         }
         .onAppear {
             if !hasCompletedOnboarding {
@@ -78,6 +78,6 @@ struct ContentView: View {
 
 #Preview {
     ContentView()
-        .environment(AppSettings())
-        .environment(KioskManager())
+        .environmentObject(AppSettings())
+        .environmentObject(KioskManager())
 }

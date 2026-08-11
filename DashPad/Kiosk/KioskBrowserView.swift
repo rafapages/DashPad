@@ -9,9 +9,9 @@ import SwiftUI
 import WebKit
 
 struct KioskBrowserView: View {
-    @Environment(AppSettings.self) var settings
-    @Environment(KioskManager.self) var kioskManager
-    @State private var webController = WebViewController()
+    @EnvironmentObject var settings: AppSettings
+    @EnvironmentObject var kioskManager: KioskManager
+    @StateObject private var webController = WebViewController()
     @State private var urlReloadTask: Task<Void, Never>?
 
     var body: some View {
@@ -21,7 +21,7 @@ struct KioskBrowserView: View {
             BrowserDrawer(webController: webController)
         }
         .ignoresSafeArea()
-        .onChange(of: settings.homeURL) { _, newURL in
+        .onChangeCompat(of: settings.homeURL) { newURL in
             // Debounce: TextField fires on every keystroke; only reload after user stops typing.
             urlReloadTask?.cancel()
             urlReloadTask = Task {
@@ -169,6 +169,6 @@ extension WebViewRepresentable {
 
 #Preview {
     KioskBrowserView()
-        .environment(AppSettings())
-        .environment(KioskManager())
+        .environmentObject(AppSettings())
+        .environmentObject(KioskManager())
 }

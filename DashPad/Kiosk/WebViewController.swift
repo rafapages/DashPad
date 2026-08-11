@@ -1,14 +1,15 @@
 // DashPad: https://github.com/rafapages/DashPad
 // Licensed under PolyForm Noncommercial 1.0.0. Commercial use requires a separate license: dashpad@rafapages.com
 
+import Combine
 import WebKit
 
-@Observable
-class WebViewController {
+class WebViewController: ObservableObject {
+    // Not @Published: the web view reference is plumbing, never rendered.
     weak var webView: WKWebView?
-    var zoomLevel: Double = 1.0
-    var canGoBack: Bool = false
-    var currentURL: URL? = nil
+    @Published var zoomLevel: Double = 1.0
+    @Published var canGoBack: Bool = false
+    @Published var currentURL: URL? = nil
 
     func reload() { webView?.reload() }
 

@@ -57,8 +57,8 @@ private struct CategoryIcon: View {
 // MARK: - SettingsView
 
 struct SettingsView: View {
-    @Environment(AppSettings.self) var settings
-    @Environment(KioskManager.self) var kioskManager
+    @EnvironmentObject var settings: AppSettings
+    @EnvironmentObject var kioskManager: KioskManager
     @Environment(\.scenePhase) private var scenePhase
     @State private var selectedCategory: SettingsCategory? = .dashboard
     @State private var cameraAuthorizationStatus = AVCaptureDevice.authorizationStatus(for: .video)
@@ -66,12 +66,12 @@ struct SettingsView: View {
     @State private var newFavouriteURL = ""
     @State private var showingPINSetup = false
     @State private var debugModeEnabled = false
-    @State private var debugViewModel = PresenceDebugViewModel()
+    @StateObject private var debugViewModel = PresenceDebugViewModel()
     @State private var addWindowRequest: AddWindowRequest? = nil
     @State private var showingSetupAssistant = false
 
     var body: some View {
-        let s = Bindable(settings)
+        let s = $settings
 
         NavigationSplitView {
             List(selection: $selectedCategory) {
@@ -118,7 +118,7 @@ struct SettingsView: View {
             if let category = selectedCategory {
                 detailContent(for: category, s: s)
             } else {
-                ContentUnavailableView("Select a setting", systemImage: "gear")
+                EmptyStatePlaceholder(title: "Select a setting", systemImage: "gear")
             }
         }
         .clearNavigationSplitViewBackground()
@@ -127,8 +127,8 @@ struct SettingsView: View {
             OnboardingView(onComplete: {
                 kioskManager.dismissSettings()
             })
-            .environment(settings)
-            .environment(kioskManager)
+            .environmentObject(settings)
+            .environmentObject(kioskManager)
         }
         .onDisappear {
             kioskManager.debugViewModel = nil
@@ -138,7 +138,7 @@ struct SettingsView: View {
     // MARK: - Detail router
 
     @ViewBuilder
-    private func detailContent(for category: SettingsCategory, s: Bindable<AppSettings>) -> some View {
+    private func detailContent(for category: SettingsCategory, s: EnvironmentObject<AppSettings>.Wrapper) -> some View {
         switch category {
         case .dashboard:  dashboardDetail(s)
         case .idleScreen: idleScreenDetail(s)
@@ -151,7 +151,7 @@ struct SettingsView: View {
     // MARK: - Detail: Dashboard
 
     @ViewBuilder
-    private func dashboardDetail(_ s: Bindable<AppSettings>) -> some View {
+    private func dashboardDetail(_ s: EnvironmentObject<AppSettings>.Wrapper) -> some View {
         Form {
             Section {
                 LabeledContent("Home URL") {
@@ -235,7 +235,7 @@ struct SettingsView: View {
     // MARK: - Detail: Kiosk Lock
 
     @ViewBuilder
-    private func kioskLockDetail(_ s: Bindable<AppSettings>) -> some View {
+    private func kioskLockDetail(_ s: EnvironmentObject<AppSettings>.Wrapper) -> some View {
         Form {
             Section {
                 Toggle("Require PIN", isOn: Binding(
@@ -277,7 +277,7 @@ struct SettingsView: View {
     // MARK: - Detail: Presence
 
     @ViewBuilder
-    private func presenceDetail(_ s: Bindable<AppSettings>) -> some View {
+    private func presenceDetail(_ s: EnvironmentObject<AppSettings>.Wrapper) -> some View {
         Form {
             Section {
                 Picker("Presence Mode", selection: s.presenceMode) {
@@ -305,14 +305,14 @@ struct SettingsView: View {
         .navigationBarTitleDisplayMode(.inline)
         .animation(.default, value: settings.presenceMode)
         .animation(.default, value: debugModeEnabled)
-        .onChange(of: settings.presenceMode) { _, mode in
+        .onChangeCompat(of: settings.presenceMode) { mode in
             if mode != .automatic { debugModeEnabled = false }
             kioskManager.setPresenceMode(mode)
         }
-        .onChange(of: debugModeEnabled) { _, enabled in
+        .onChangeCompat(of: debugModeEnabled) { enabled in
             kioskManager.debugViewModel = enabled ? debugViewModel : nil
         }
-        .onChange(of: scenePhase) { _, phase in
+        .onChangeCompat(of: scenePhase) { phase in
             if phase == .active {
                 cameraAuthorizationStatus = AVCaptureDevice.authorizationStatus(for: .video)
             }
@@ -345,7 +345,7 @@ struct SettingsView: View {
     // MARK: - Automatic (camera) controls
 
     @ViewBuilder
-    private func automaticPresenceControls(_ s: Bindable<AppSettings>) -> some View {
+    private func automaticPresenceControls(_ s: EnvironmentObject<AppSettings>.Wrapper) -> some View {
         if cameraAuthorizationStatus == .denied || cameraAuthorizationStatus == .restricted {
             Section {
                 Label {
@@ -417,7 +417,7 @@ struct SettingsView: View {
     // MARK: - Schedule controls
 
     @ViewBuilder
-    private func scheduleControls(_ s: Bindable<AppSettings>) -> some View {
+    private func scheduleControls(_ s: EnvironmentObject<AppSettings>.Wrapper) -> some View {
         Section {
             SliderRow(label: "Manual Wake Timeout", value: s.manualWakeTimeout, range: 30...600, step: 30, unit: "s")
         } footer: {
@@ -439,7 +439,7 @@ struct SettingsView: View {
     }
 
     @ViewBuilder
-    private func windowSection(dayIndex: Int, title: String, s: Bindable<AppSettings>) -> some View {
+    private func windowSection(dayIndex: Int, title: String, s: EnvironmentObject<AppSettings>.Wrapper) -> some View {
         Section {
             let windows = settings.weeklySchedule.windows[dayIndex]
             ForEach(Array(windows.enumerated()), id: \.element.id) { idx, window in
@@ -496,7 +496,7 @@ struct SettingsView: View {
     // MARK: - Detail: Idle Screen
 
     @ViewBuilder
-    private func idleScreenDetail(_ s: Bindable<AppSettings>) -> some View {
+    private func idleScreenDetail(_ s: EnvironmentObject<AppSettings>.Wrapper) -> some View {
         Form {
             Section {
                 IdleOptionRow(label: "Clock",
@@ -552,7 +552,7 @@ struct SettingsView: View {
     // MARK: - Detail: Brightness
 
     @ViewBuilder
-    private func brightnessDetail(_ s: Bindable<AppSettings>) -> some View {
+    private func brightnessDetail(_ s: EnvironmentObject<AppSettings>.Wrapper) -> some View {
         Form {
             Section {
                 SliderRow(label: "Active", value: s.activeBrightness, range: 0...1, step: 0.05, unit: "%", displayMultiplier: 100)
@@ -568,7 +568,7 @@ struct SettingsView: View {
     // MARK: - Detail: Injection
 
     @ViewBuilder
-    private func injectionDetail(_ s: Bindable<AppSettings>) -> some View {
+    private func injectionDetail(_ s: EnvironmentObject<AppSettings>.Wrapper) -> some View {
         Form {
             Section {
                 NavigationLink("Custom CSS") {
@@ -774,7 +774,7 @@ private struct IdleOptionRow: View {
 // MARK: - Clock preview card
 
 private struct ClockPreviewCard: View {
-    @Environment(AppSettings.self) var settings
+    @EnvironmentObject var settings: AppSettings
     @State private var now = Date()
     private let ticker = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
@@ -850,7 +850,7 @@ private struct MiniAnalogClockFace: View {
     }
     .sheet(isPresented: .constant(true)) {
         SettingsView()
-            .environment(AppSettings())
-            .environment(km)
+            .environmentObject(AppSettings())
+            .environmentObject(km)
     }
 }

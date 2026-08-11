@@ -3,6 +3,19 @@
 All notable changes to DashPad are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [Unreleased]
+
+### Changed
+- Lowered the deployment target from iOS/iPadOS 18.6 to 16.0, extending support back to the iPad
+  Air 2 (2014), iPad mini 4, iPad 5th generation and the original iPad Pro. See
+  [Supported iPads](README.md#supported-ipads) for the caveats on the oldest devices.
+- Migrated the state layer from the Observation framework (`@Observable`, `@Bindable`,
+  `@Environment(Type.self)`) to `ObservableObject` / `@Published` / `@EnvironmentObject`, which is
+  what the lower target requires. `KioskManager.lastLuminance` and `manualWakeUntil` are
+  intentionally left unpublished so per-sample camera updates no longer invalidate the view tree.
+- Collected all availability gating in `Support/AvailabilityCompat.swift`. Behaviour on iOS 26 is
+  unchanged; older releases fall back to the standard system appearance.
+
 ## [1.0.0] - 2026-06-29
 
 First public, source-available release.

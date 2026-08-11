@@ -5,35 +5,35 @@
 // Every property persists immediately via didSet → UserDefaults (or Keychain for the PIN).
 // Injected into the SwiftUI environment at the root; read by views and KioskManager alike.
 
+import Combine
 import Foundation
 import Security
 
-@Observable
-class AppSettings {
+class AppSettings: ObservableObject {
     // MARK: - Persisted settings
 
-    var homeURL: String { didSet { save(homeURL, key: .homeURL) } }
-    var idleTimeout: Double { didSet { save(idleTimeout, key: .idleTimeout) } }
-    var idleScreenType: IdleScreenType { didSet { save(idleScreenType.rawValue, key: .idleScreenType) } }
-    var idleCustomURL: String { didSet { save(idleCustomURL, key: .idleCustomURL) } }
-    var clockStyle: ClockStyle { didSet { save(clockStyle.rawValue, key: .clockStyle) } }
-    var idleBrightness: Double { didSet { save(idleBrightness, key: .idleBrightness) } }
-    var activeBrightness: Double { didSet { save(activeBrightness, key: .activeBrightness) } }
-    var presenceMode: PresenceMode { didSet { save(presenceMode.rawValue, key: .presenceMode) } }
-    var cameraSampleRate: Double { didSet { save(cameraSampleRate, key: .cameraSampleRate) } }
-    var nightSampleRate: Double { didSet { save(nightSampleRate, key: .nightSampleRate) } }
-    var presenceRecheckInterval: Double { didSet { save(presenceRecheckInterval, key: .presenceRecheckInterval) } }
-    var darkLuminanceThreshold: Double { didSet { save(darkLuminanceThreshold, key: .darkLuminanceThreshold) } }
-    var detectionMode: DetectionMode { didSet { save(detectionMode.rawValue, key: .detectionMode) } }
-    var allowedDomains: String { didSet { save(allowedDomains, key: .allowedDomains) } }
-    var customCSS: String { didSet { save(customCSS, key: .customCSS) } }
-    var customJS: String { didSet { save(customJS, key: .customJS) } }
-    var favouriteURLs: [String] { didSet { save(favouriteURLs, key: .favouriteURLs) } }
-    var weeklySchedule: WeeklySchedule { didSet { saveCodable(weeklySchedule, key: .weeklySchedule) } }
-    var manualWakeTimeout: Double { didSet { save(manualWakeTimeout, key: .manualWakeTimeout) } }
+    @Published var homeURL: String { didSet { save(homeURL, key: .homeURL) } }
+    @Published var idleTimeout: Double { didSet { save(idleTimeout, key: .idleTimeout) } }
+    @Published var idleScreenType: IdleScreenType { didSet { save(idleScreenType.rawValue, key: .idleScreenType) } }
+    @Published var idleCustomURL: String { didSet { save(idleCustomURL, key: .idleCustomURL) } }
+    @Published var clockStyle: ClockStyle { didSet { save(clockStyle.rawValue, key: .clockStyle) } }
+    @Published var idleBrightness: Double { didSet { save(idleBrightness, key: .idleBrightness) } }
+    @Published var activeBrightness: Double { didSet { save(activeBrightness, key: .activeBrightness) } }
+    @Published var presenceMode: PresenceMode { didSet { save(presenceMode.rawValue, key: .presenceMode) } }
+    @Published var cameraSampleRate: Double { didSet { save(cameraSampleRate, key: .cameraSampleRate) } }
+    @Published var nightSampleRate: Double { didSet { save(nightSampleRate, key: .nightSampleRate) } }
+    @Published var presenceRecheckInterval: Double { didSet { save(presenceRecheckInterval, key: .presenceRecheckInterval) } }
+    @Published var darkLuminanceThreshold: Double { didSet { save(darkLuminanceThreshold, key: .darkLuminanceThreshold) } }
+    @Published var detectionMode: DetectionMode { didSet { save(detectionMode.rawValue, key: .detectionMode) } }
+    @Published var allowedDomains: String { didSet { save(allowedDomains, key: .allowedDomains) } }
+    @Published var customCSS: String { didSet { save(customCSS, key: .customCSS) } }
+    @Published var customJS: String { didSet { save(customJS, key: .customJS) } }
+    @Published var favouriteURLs: [String] { didSet { save(favouriteURLs, key: .favouriteURLs) } }
+    @Published var weeklySchedule: WeeklySchedule { didSet { saveCodable(weeklySchedule, key: .weeklySchedule) } }
+    @Published var manualWakeTimeout: Double { didSet { save(manualWakeTimeout, key: .manualWakeTimeout) } }
 
     // PIN is stored in Keychain
-    var exitPIN: String {
+    @Published var exitPIN: String {
         didSet { KeychainHelper.write(key: "com.rafapages.dashpad.exitPIN", value: exitPIN) }
     }
 

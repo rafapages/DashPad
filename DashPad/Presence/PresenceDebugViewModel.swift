@@ -5,13 +5,12 @@
 // KioskManager holds a weak reference to this; when debug mode is turned off the reference
 // is cleared to nil, which stops all debug output with no additional coordination needed.
 
+import Combine
 import Foundation
 import UIKit
 import Vision
-import Observation
 
-@Observable
-final class PresenceDebugViewModel {
+final class PresenceDebugViewModel: ObservableObject {
 
     struct LogEntry: Identifiable {
         let id = UUID()
@@ -19,12 +18,12 @@ final class PresenceDebugViewModel {
         let message: String
     }
 
-    var observations: [VNDetectedObjectObservation] = []
-    var lastSampleDate: Date = .distantPast
-    var lastLuminance: Double = 0
-    var lastPhoto: UIImage?
-    var logEntries: [LogEntry] = []
-    var verboseFrameEvents: Bool = false
+    @Published var observations: [VNDetectedObjectObservation] = []
+    @Published var lastSampleDate: Date = .distantPast
+    @Published var lastLuminance: Double = 0
+    @Published var lastPhoto: UIImage?
+    @Published var logEntries: [LogEntry] = []
+    @Published var verboseFrameEvents: Bool = false
 
     private let maxEntries = 100
 

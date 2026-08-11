@@ -7,7 +7,7 @@ import Combine
 import SwiftUI
 
 struct ClockView: View {
-    @Environment(AppSettings.self) var settings
+    @EnvironmentObject var settings: AppSettings
     @State private var now = Date()
     // Ticks every 60 s because neither clock style shows a seconds hand; firing every
     // second would redraw the view 59 times per minute for no visible benefit.
@@ -98,5 +98,5 @@ private struct ClockHand: View {
 
 #Preview {
     ClockView()
-        .environment(AppSettings())
+        .environmentObject(AppSettings())
 }

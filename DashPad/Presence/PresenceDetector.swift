@@ -96,10 +96,7 @@ class PresenceDetector: NSObject {
         session.addOutput(videoOutput)
 
         if let connection = videoOutput.connection(with: .video) {
-            let angle = videoRotationAngle()
-            if connection.isVideoRotationAngleSupported(angle) {
-                connection.videoRotationAngle = angle
-            }
+            applyRotation(to: connection)
             if connection.isVideoMirroringSupported {
                 connection.isVideoMirrored = true
             }
@@ -117,21 +114,52 @@ class PresenceDetector: NSObject {
         }
     }
 
-    private func videoRotationAngle() -> CGFloat {
-        var angle: CGFloat = 90
+    /// `videoRotationAngle` is iOS 17+; older releases use the `videoOrientation` enum it
+    /// replaced. The two paths express the same rotations - see `videoOrientation()`.
+    private func applyRotation(to connection: AVCaptureConnection) {
+        if #available(iOS 17.0, *) {
+            let angle = videoRotationAngle()
+            if connection.isVideoRotationAngleSupported(angle) {
+                connection.videoRotationAngle = angle
+            }
+        } else if connection.isVideoOrientationSupported {
+            connection.videoOrientation = videoOrientation()
+        }
+    }
+
+    private func currentInterfaceOrientation() -> UIInterfaceOrientation {
+        var orientation: UIInterfaceOrientation = .portrait
         DispatchQueue.main.sync {
             guard let scene = UIApplication.shared.connectedScenes
                 .compactMap({ $0 as? UIWindowScene }).first
             else { return }
-            switch scene.effectiveGeometry.interfaceOrientation {
-            case .portrait:           angle = 90
-            case .portraitUpsideDown: angle = 270
-            case .landscapeRight:     angle = 180
-            case .landscapeLeft:      angle = 0
-            default:                  angle = 90
-            }
+            orientation = scene.effectiveGeometry.interfaceOrientation
         }
-        return angle
+        return orientation
+    }
+
+    @available(iOS 17.0, *)
+    private func videoRotationAngle() -> CGFloat {
+        switch currentInterfaceOrientation() {
+        case .portrait:           return 90
+        case .portraitUpsideDown: return 270
+        case .landscapeRight:     return 180
+        case .landscapeLeft:      return 0
+        default:                  return 90
+        }
+    }
+
+    /// Pre-iOS 17 equivalent of `videoRotationAngle()`. AVFoundation's landscape cases are
+    /// inverted with respect to UIKit's, so left maps to right and vice versa; the resulting
+    /// rotations match the angles above (portrait 90°, upside down 270°, UIKit-left 0°).
+    private func videoOrientation() -> AVCaptureVideoOrientation {
+        switch currentInterfaceOrientation() {
+        case .portrait:           return .portrait
+        case .portraitUpsideDown: return .portraitUpsideDown
+        case .landscapeRight:     return .landscapeLeft
+        case .landscapeLeft:      return .landscapeRight
+        default:                  return .portrait
+        }
     }
 
     // MARK: - Detection

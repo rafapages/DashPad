@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct PINEntryOverlay: View {
-    @Environment(KioskManager.self) var kioskManager
+    @EnvironmentObject var kioskManager: KioskManager
     @State private var entered = ""
     @State private var showError = false
     @State private var shakeAmount: CGFloat = 0
@@ -192,7 +192,7 @@ struct PadKey: View {
 
 #Preview {
     PINEntryOverlay()
-        .environment(KioskManager())
+        .environmentObject(KioskManager())
 }
 
 // MARK: - PIN Setup (two-phase confirmation sheet)

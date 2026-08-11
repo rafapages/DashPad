@@ -9,7 +9,7 @@ import SwiftUI
 struct OnboardingView: View {
     var onComplete: () -> Void
 
-    @Environment(AppSettings.self) private var settings
+    @EnvironmentObject private var settings: AppSettings
     @Environment(\.dismiss) private var dismiss
 
     private enum URLSetupMode { case homeAssistant, website }
@@ -22,6 +22,9 @@ struct OnboardingView: View {
     @State private var selectedIdleType: IdleScreenType = .clock
     @State private var showingPINSetup = false
     @State private var pinBeforeSetup = ""
+    /// Height of the step ScrollView's viewport, measured for the iOS 16 fallback in
+    /// `welcomeStep()`. Unused on iOS 17+, where `containerRelativeFrame` reads it natively.
+    @State private var scrollViewportHeight: CGFloat = 0
 
     var body: some View {
         VStack(spacing: 0) {
@@ -56,6 +59,8 @@ struct OnboardingView: View {
                 }
                 .frame(maxWidth: .infinity)
             }
+            .measureContainerHeight()
+            .onPreferenceChange(ContainerHeightKey.self) { scrollViewportHeight = $0 }
 
             // Fixed footer: progress dots + CTA buttons
             VStack(spacing: 12) {
@@ -69,9 +74,9 @@ struct OnboardingView: View {
             .padding(.bottom, 32)
         }
         .sheet(isPresented: $showingPINSetup) {
-            PINSetupView(savedPIN: Bindable(settings).exitPIN)
+            PINSetupView(savedPIN: $settings.exitPIN)
         }
-        .onChange(of: showingPINSetup) { _, isShowing in
+        .onChangeCompat(of: showingPINSetup) { isShowing in
             if !isShowing && settings.exitPIN != pinBeforeSetup {
                 advance()
             }
@@ -196,7 +201,7 @@ struct OnboardingView: View {
     private func welcomeStep() -> some View {
         VStack(spacing: 0) {
             AnimatedBlobGradient()
-                .containerRelativeFrame(.vertical) { h, _ in h * 0.5 }
+                .relativeContainerHeight(0.5, measuredContainerHeight: scrollViewportHeight)
                 .clipShape(UnevenRoundedRectangle(
                     topLeadingRadius: 20, bottomLeadingRadius: 0,
                     bottomTrailingRadius: 0, topTrailingRadius: 20
@@ -530,6 +535,6 @@ private struct InfoBox<Content: View>: View {
     Color.black.ignoresSafeArea()
         .sheet(isPresented: .constant(true)) {
             OnboardingView(onComplete: {})
-                .environment(AppSettings())
+                .environmentObject(AppSettings())
         }
 }
