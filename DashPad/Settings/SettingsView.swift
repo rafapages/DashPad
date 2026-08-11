@@ -121,7 +121,7 @@ struct SettingsView: View {
                 ContentUnavailableView("Select a setting", systemImage: "gear")
             }
         }
-        .containerBackground(.clear, for: .navigationSplitView)
+        .clearNavigationSplitViewBackground()
         .presentationDetents([.medium, .large])
         .sheet(isPresented: $showingSetupAssistant) {
             OnboardingView(onComplete: {
@@ -213,7 +213,7 @@ struct SettingsView: View {
             }
         }
         .scrollContentBackground(.hidden)
-        .containerBackground(.clear, for: .navigation)
+        .clearNavigationBackground()
         .navigationTitle("Dashboard")
         .navigationBarTitleDisplayMode(.inline)
         .alert("Add Favourite", isPresented: $showingAddFavourite) {
@@ -266,7 +266,7 @@ struct SettingsView: View {
             }
         }
         .scrollContentBackground(.hidden)
-        .containerBackground(.clear, for: .navigation)
+        .clearNavigationBackground()
         .navigationTitle("Kiosk Lock")
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $showingPINSetup) {
@@ -300,7 +300,7 @@ struct SettingsView: View {
             }
         }
         .scrollContentBackground(.hidden)
-        .containerBackground(.clear, for: .navigation)
+        .clearNavigationBackground()
         .navigationTitle("Presence")
         .navigationBarTitleDisplayMode(.inline)
         .animation(.default, value: settings.presenceMode)
@@ -544,7 +544,7 @@ struct SettingsView: View {
         }
         .animation(.default, value: settings.idleScreenType)
         .scrollContentBackground(.hidden)
-        .containerBackground(.clear, for: .navigation)
+        .clearNavigationBackground()
         .navigationTitle("Idle Screen")
         .navigationBarTitleDisplayMode(.inline)
     }
@@ -560,7 +560,7 @@ struct SettingsView: View {
             }
         }
         .scrollContentBackground(.hidden)
-        .containerBackground(.clear, for: .navigation)
+        .clearNavigationBackground()
         .navigationTitle("Brightness")
         .navigationBarTitleDisplayMode(.inline)
     }
@@ -582,7 +582,7 @@ struct SettingsView: View {
             }
         }
         .scrollContentBackground(.hidden)
-        .containerBackground(.clear, for: .navigation)
+        .clearNavigationBackground()
         .navigationTitle("Injection")
         .navigationBarTitleDisplayMode(.inline)
     }
@@ -642,7 +642,7 @@ private struct ScheduleWindowEditView: View {
         .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
         .scrollContentBackground(.hidden)
-        .containerBackground(.clear, for: .navigation)
+        .clearNavigationBackground()
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
                 Button("Cancel") { dismiss() }
