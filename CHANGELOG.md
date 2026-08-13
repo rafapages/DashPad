@@ -7,7 +7,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 - Lowered the deployment target from iOS/iPadOS 18.6 to 16.0, extending support back to the iPad
-  Air 2 (2014), iPad mini 4, iPad 5th generation and the original iPad Pro. See
+  5th generation (2017) and the original iPad Pro (2015). See
   [Supported iPads](README.md#supported-ipads) for the caveats on the oldest devices.
 - Migrated the state layer from the Observation framework (`@Observable`, `@Bindable`,
   `@Environment(Type.self)`) to `ObservableObject` / `@Published` / `@EnvironmentObject`, which is

@@ -81,13 +81,14 @@ The commercial iOS kiosk apps are priced and designed for retail and museum depl
 
 ### Supported iPads
 
-The iPadOS 16 floor covers every iPad back to the iPad Air 2 (2014), iPad mini 4, iPad 5th
-generation and the original iPad Pro. Newer APIs are used where available and fall back to the
-standard system appearance elsewhere, so the app looks its best on iOS 26 but is fully functional
-below it.
+The iPadOS 16 floor covers every iPad back to the iPad 5th generation (2017) and the original
+iPad Pro (2015), plus iPad Air 3rd generation and later and iPad mini 5th generation and later.
+The cutoff is the A9 chip: the iPad Air 2 and iPad mini 4 top out at iPadOS 15 and are not
+supported. Newer APIs are used where available and fall back to the standard system appearance
+elsewhere, so the app looks its best on iOS 26 but is fully functional below it.
 
 Bear in mind that the oldest supported devices are constrained for reasons that have nothing to
-do with the deployment target. The iPad Air 2 and iPad 5th generation have 2 GB of RAM, and a
+do with the deployment target. The iPad 5th generation and 9.7-inch iPad Pro have 2 GB of RAM, and a
 Home Assistant dashboard in `WKWebView` alongside a live camera session is close to their limit;
 if you hit memory pressure, prefer Schedule mode over Automatic (Camera). Vision's body detection
 is also considerably heavier than face detection on an A8X, so `Face` mode and a slower sample

@@ -194,9 +194,10 @@ The debug image (`CaptureResult.debugImage`) is a `UIImage` created from the cap
 ## Deployment target and back-deployment
 
 The deployment target is iOS/iPadOS 16.0, chosen so the app runs on the older iPads its use case
-depends on - an iPad Air 2 or iPad 5th generation mounted on a wall is squarely the target user.
-16.0 is the practical floor: `NavigationSplitView`, which `SettingsView` is built on, does not
-exist below it.
+depends on - an iPad 5th generation or original iPad Pro mounted on a wall is squarely the target
+user. 16.0 is also where the SwiftUI surface this app is built on begins: `NavigationSplitView`,
+`NavigationStack`, `scrollContentBackground`, `presentationDetents`, `LabeledContent`, `Grid` and
+`UnevenRoundedRectangle` are all iOS 16.
 
 The app is still developed against the current SDK and uses newer APIs where they exist. Anything
 above the deployment target is gated, and the gates are collected in
