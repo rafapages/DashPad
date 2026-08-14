@@ -38,3 +38,5 @@ docs/specs/
 
 # Local Claude Code project rules (not shipped; contributors use their own)
 CLAUDE.md
+
+docs/Screenshot*
