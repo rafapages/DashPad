@@ -59,7 +59,6 @@ private struct CategoryIcon: View {
 struct SettingsView: View {
     @EnvironmentObject var settings: AppSettings
     @EnvironmentObject var kioskManager: KioskManager
-    @Environment(\.scenePhase) private var scenePhase
     @State private var selectedCategory: SettingsCategory? = .dashboard
     @State private var cameraAuthorizationStatus = AVCaptureDevice.authorizationStatus(for: .video)
     @State private var showingAddFavourite = false
@@ -126,7 +125,7 @@ struct SettingsView: View {
         .sheet(isPresented: $showingSetupAssistant) {
             OnboardingView(onComplete: {
                 kioskManager.dismissSettings()
-            })
+            }, isRerun: true)
             .environmentObject(settings)
             .environmentObject(kioskManager)
         }
@@ -290,6 +289,11 @@ struct SettingsView: View {
                 presenceModeFooter
             }
 
+            // Outside the mode switch on purpose. Declining the camera leaves the mode on
+            // Always Active, so a warning shown only under Automatic would be unreachable
+            // by the very users who need it - there'd be no way back in.
+            cameraAccessWarning
+
             switch settings.presenceMode {
             case .automatic:
                 automaticPresenceControls(s)
@@ -312,10 +316,10 @@ struct SettingsView: View {
         .onChangeCompat(of: debugModeEnabled) { enabled in
             kioskManager.debugViewModel = enabled ? debugViewModel : nil
         }
-        .onChangeCompat(of: scenePhase) { phase in
-            if phase == .active {
-                cameraAuthorizationStatus = AVCaptureDevice.authorizationStatus(for: .video)
-            }
+        // Notification rather than `scenePhase`: this pane lives inside a sheet, where the
+        // environment value's delivery has varied across the OS versions the app now supports.
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
+            cameraAuthorizationStatus = AVCaptureDevice.authorizationStatus(for: .video)
         }
         .sheet(item: $addWindowRequest) { request in
             NavigationStack {
@@ -342,16 +346,21 @@ struct SettingsView: View {
         }
     }
 
-    // MARK: - Automatic (camera) controls
+    // MARK: - Camera access warning
 
+    /// Shown in the Presence pane whenever the camera is unavailable, in any presence mode.
+    /// `.restricted` is a device-wide block (Screen Time or a management profile) that the app's
+    /// own permission row cannot lift, so it gets different wording and no dead-end button.
     @ViewBuilder
-    private func automaticPresenceControls(_ s: EnvironmentObject<AppSettings>.Wrapper) -> some View {
+    private var cameraAccessWarning: some View {
         if cameraAuthorizationStatus == .denied || cameraAuthorizationStatus == .restricted {
             Section {
                 Label {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Camera access is off")
-                        Text("Presence detection can't work until camera access is allowed for DashPad.")
+                        Text(cameraAuthorizationStatus == .restricted
+                             ? "Camera use is switched off for this iPad by Screen Time or a device management profile, so Automatic mode can't detect anyone."
+                             : "Automatic mode can't detect anyone until camera access is allowed for DashPad.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -359,14 +368,21 @@ struct SettingsView: View {
                     Image(systemName: "exclamationmark.triangle.fill")
                         .foregroundStyle(.orange)
                 }
-                Button("Open Settings") {
-                    if let url = URL(string: UIApplication.openSettingsURLString) {
-                        UIApplication.shared.open(url)
+                if cameraAuthorizationStatus == .denied {
+                    Button("Open Settings") {
+                        if let url = URL(string: UIApplication.openSettingsURLString) {
+                            UIApplication.shared.open(url)
+                        }
                     }
                 }
             }
         }
+    }
 
+    // MARK: - Automatic (camera) controls
+
+    @ViewBuilder
+    private func automaticPresenceControls(_ s: EnvironmentObject<AppSettings>.Wrapper) -> some View {
         Section {
             Toggle(isOn: $debugModeEnabled) {
                 VStack(alignment: .leading, spacing: 2) {

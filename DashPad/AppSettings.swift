@@ -34,8 +34,17 @@ class AppSettings: ObservableObject {
 
     // PIN is stored in Keychain
     @Published var exitPIN: String {
-        didSet { KeychainHelper.write(key: "com.rafapages.dashpad.exitPIN", value: exitPIN) }
+        didSet { KeychainHelper.write(key: Self.pinKeychainKey, value: exitPIN) }
     }
+
+    /// Digits in a newly created PIN. `PINSetupView` is the only writer of a non-empty `exitPIN`,
+    /// so this is the length of every PIN this app creates - both the setup keypad and the entry
+    /// overlay size themselves from it rather than hard-coding a count of their own.
+    static let pinLength = 4
+
+    private static let pinKeychainKey = "com.rafapages.dashpad.exitPIN"
+    /// Owned by `ContentView`'s `@AppStorage`; read here only to recognise a fresh install.
+    private static let onboardingCompletedKey = "hasCompletedOnboarding"
 
     init() {
         let ud = UserDefaults.standard
@@ -66,7 +75,14 @@ class AppSettings: ObservableObject {
         favouriteURLs = ud.stringArray(forKey: Key.favouriteURLs.rawValue) ?? []
         weeklySchedule = Self.decodeCodable(WeeklySchedule.self, forKey: Key.weeklySchedule.rawValue) ?? WeeklySchedule()
         manualWakeTimeout = ud.optionalDouble(forKey: Key.manualWakeTimeout.rawValue) ?? 120.0
-        exitPIN = KeychainHelper.read(key: "com.rafapages.dashpad.exitPIN") ?? ""
+
+        // Keychain items outlive app deletion, so a reinstall would otherwise come back already
+        // locked by a PIN from the previous install - one the user may not remember, and which
+        // makes onboarding's PIN step look broken. An unfinished onboarding means a fresh start.
+        if !ud.bool(forKey: Self.onboardingCompletedKey) {
+            KeychainHelper.delete(key: Self.pinKeychainKey)
+        }
+        exitPIN = KeychainHelper.read(key: Self.pinKeychainKey) ?? ""
     }
 
     var allowedDomainList: [String] {
@@ -194,6 +210,14 @@ private enum KeychainHelper {
         ]
         SecItemDelete(query as CFDictionary)
         SecItemAdd(query as CFDictionary, nil)
+    }
+
+    static func delete(key: String) {
+        let query: [CFString: Any] = [
+            kSecClass: kSecClassGenericPassword,
+            kSecAttrAccount: key
+        ]
+        SecItemDelete(query as CFDictionary)
     }
 
     static func read(key: String) -> String? {

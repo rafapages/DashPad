@@ -67,8 +67,10 @@ class KioskManager: ObservableObject {
 
     // MARK: - Lifecycle
 
-    /// Called once from `ContentView.onAppear`. Starts the presence pipeline appropriate
-    /// for the current `presenceMode`. Subsequent mode changes go through `setPresenceMode(_:)`.
+    /// Starts the presence pipeline appropriate for the current `presenceMode`. Called from
+    /// `ContentView` once onboarding is out of the way - never while it is on screen, or the
+    /// camera pipeline would raise the system permission dialog behind the sheet and dim the
+    /// screen to `idleBrightness` mid-setup. Subsequent changes go through `setPresenceMode(_:)`.
     func start(settings: AppSettings) {
         guard !started else { return }
         started = true
@@ -140,8 +142,12 @@ class KioskManager: ObservableObject {
 
     // MARK: - Presence mode switch
 
-    /// Tears down the current presence mode and starts the new one. Safe to call at any time.
+    /// Tears down the current presence mode and starts the new one. Safe to call at any time:
+    /// before `start(settings:)` has run - i.e. from onboarding on a first launch - there is no
+    /// pipeline to switch and nothing to do, because `start` will read the stored mode itself.
     func setPresenceMode(_ mode: PresenceMode) {
+        guard started else { return }
+
         stopScheduleTimer()
         cancelAllTimers()
         presenceDetector = nil
@@ -199,12 +205,14 @@ class KioskManager: ObservableObject {
 
     var storedPINLength: Int { settings?.exitPIN.count ?? 0 }
 
-    /// Returns `true` and opens settings if the entered PIN matches the stored one
-    /// (or if no PIN has been set). Returns `false` and leaves the overlay visible otherwise.
+    /// Returns `true` and opens settings if the entered PIN matches the stored one. Returns
+    /// `false` and leaves the overlay visible otherwise - including when no PIN is stored, which
+    /// this screen is never reached without: `handleSecretTap()` opens settings directly in that
+    /// case, so an empty stored PIN here means something is wrong and must not unlock anything.
     func validatePIN(_ entered: String) -> Bool {
         guard let settings else { return false }
         let stored = settings.exitPIN
-        guard stored.isEmpty || entered == stored else { return false }
+        guard !stored.isEmpty, entered == stored else { return false }
         showingPINEntry = false
         if isKioskModeActive { deactivateGuidedAccess() }
         showingSettings = true

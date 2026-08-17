@@ -56,12 +56,19 @@ struct ContainerHeightKey: PreferenceKey {
 extension View {
     /// Publishes this view's height under `ContainerHeightKey` so a descendant can size itself
     /// relative to it via `relativeContainerHeight(_:measuredContainerHeight:)` on iOS 16.
+    /// No-ops on iOS 17+, where `containerRelativeFrame` measures its own container and the
+    /// GeometryReader would be laying out and publishing a value nothing reads.
+    @ViewBuilder
     func measureContainerHeight() -> some View {
-        background(
-            GeometryReader { geo in
-                Color.clear.preference(key: ContainerHeightKey.self, value: geo.size.height)
-            }
-        )
+        if #available(iOS 17.0, *) {
+            self
+        } else {
+            background(
+                GeometryReader { geo in
+                    Color.clear.preference(key: ContainerHeightKey.self, value: geo.size.height)
+                }
+            )
+        }
     }
 
     /// Sizes the view to `fraction` of its scroll container's height.

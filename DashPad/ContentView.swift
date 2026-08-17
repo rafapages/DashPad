@@ -60,15 +60,19 @@ struct ContentView: View {
         .sheet(isPresented: $showingOnboarding) {
             OnboardingView(onComplete: {
                 hasCompletedOnboarding = true
+                // Deferred from onAppear: the presence mode the user just chose is now stored,
+                // and there is no longer a sheet for the camera dialog to appear behind.
+                kioskManager.start(settings: settings)
             })
             .environmentObject(settings)
             .environmentObject(kioskManager)
         }
         .onAppear {
-            if !hasCompletedOnboarding {
+            if hasCompletedOnboarding {
+                kioskManager.start(settings: settings)
+            } else {
                 showingOnboarding = true
             }
-            kioskManager.start(settings: settings)
         }
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
             kioskManager.evaluateSchedule()

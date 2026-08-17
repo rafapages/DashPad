@@ -15,7 +15,7 @@ DashPad offers three presence modes, selected via `AppSettings.presenceMode` (a 
 | `.schedule` | Fixed Active windows defined by time of day. `KioskManager` runs a 60-second timer and evaluates the current time against `AppSettings.weeklySchedule`. | No |
 | `.alwaysActive` | Display stays active permanently. | No |
 
-`KioskManager.setPresenceMode(_:)` tears down the current mode's resources and starts the new one. On app launch `KioskManager.start(settings:)` dispatches to the right mode immediately.
+`KioskManager.setPresenceMode(_:)` tears down the current mode's resources and starts the new one; before `start(settings:)` has run it does nothing, because there is no pipeline yet and `start` reads the stored mode itself. On app launch `KioskManager.start(settings:)` dispatches to the right mode immediately — except on a first run, where it is deferred until onboarding completes so the camera cannot prompt behind the setup sheet.
 
 **Migration from the old `presenceEnabled` bool:** on the first launch after update, if `presenceMode` has not yet been saved, `AppSettings` reads the legacy `presenceEnabled` key and converts it - `true` → `.automatic`, `false` → `.alwaysActive`. The legacy key is left in place to allow downgrade.
 

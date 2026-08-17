@@ -87,7 +87,7 @@ ContentView.sheet → SettingsView  (when showingSettings == true)
 
 ### 1. Lifecycle and presence modes
 
-`start(settings:)` is called from `ContentView.onAppear`. It reads `AppSettings.presenceMode` and dispatches to the appropriate mode:
+`start(settings:)` is called from `ContentView` — from `onAppear` when onboarding has already been completed, otherwise from the onboarding sheet's completion handler. It is never called while onboarding is on screen: the camera pipeline would raise the system permission dialog behind the sheet and dim the display to the idle brightness mid-setup. It reads `AppSettings.presenceMode` and dispatches to the appropriate mode:
 
 ```swift
 switch settings.presenceMode {
@@ -173,7 +173,9 @@ Every setting is persisted immediately on change via `didSet`. The persistence s
 | `WeeklySchedule` (`Codable` struct) | JSON-encoded `Data` via `saveCodable(_:key:)` → `UserDefaults.set(_:forKey:)` |
 | Exit PIN (`String`) | Keychain via `KeychainHelper` |
 
-`KeychainHelper` is a private enum with two static methods, `read(key:)` and `write(key:value:)`. It uses `kSecClassGenericPassword` with the item's key as `kSecAttrAccount`. On write, it deletes any existing item before adding the new one - this avoids duplicate item errors.
+`KeychainHelper` is a private enum with three static methods, `read(key:)`, `write(key:value:)` and `delete(key:)`. It uses `kSecClassGenericPassword` with the item's key as `kSecAttrAccount`. On write, it deletes any existing item before adding the new one - this avoids duplicate item errors.
+
+Keychain items outlive app deletion, so `AppSettings.init` deletes the stored PIN when `hasCompletedOnboarding` is `false`. Without this a reinstall comes back already locked by the previous install's PIN.
 
 `UserDefaults` reads use `optionalDouble(forKey:)`, a private extension that returns `nil` if the key has never been set (rather than `0.0`, which is `UserDefaults`'s default for missing doubles). This allows the initialiser to distinguish "never configured" from "explicitly set to zero."
 

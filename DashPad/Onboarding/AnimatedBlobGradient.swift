@@ -43,7 +43,6 @@ private let keyframes: [[Blob]] = [
 
 struct AnimatedBlobGradient: View {
     @State private var blobs: [Blob] = keyframes[0]
-    @State private var currentFrame = 0
 
     private let transitionDuration: TimeInterval = 4.0
 
@@ -60,8 +59,32 @@ struct AnimatedBlobGradient: View {
                 blobLayer(blobs: blobs, size: geo.size)
                     .blendMode(.colorDodge)
             }
+            // No `drawingGroup()` here. Rasterising the stack is cheaper, but it clips each
+            // blob's blur to the group's bounds and runs the colour-dodge pass through an
+            // offscreen buffer in a different colour space - the gradient does not survive it.
         }
-        .onAppear { advance() }
+        .task { await cycleKeyframes() }
+    }
+
+    /// Advances the keyframes for as long as the view is on screen.
+    ///
+    /// Bound to the view's lifetime by `task`, which cancels it on disappear. The
+    /// self-rescheduling `DispatchQueue.main.asyncAfter` chain this replaces had no cancellation:
+    /// it kept animating for the life of the process after the welcome step was gone, and
+    /// `onAppear` started a fresh chain every time the step came back, so the loops accumulated
+    /// and competed for the same state.
+    @MainActor
+    private func cycleKeyframes() async {
+        // Local rather than @State: the frame index is bookkeeping the body never reads, so
+        // keeping it here avoids invalidating the view on every step.
+        var frame = 0
+        while !Task.isCancelled {
+            frame = (frame + 1) % keyframes.count
+            withAnimation(.easeInOut(duration: transitionDuration)) {
+                blobs = keyframes[frame]
+            }
+            try? await Task.sleep(nanoseconds: UInt64(transitionDuration * 1_000_000_000))
+        }
     }
 
     @ViewBuilder
@@ -84,18 +107,6 @@ struct AnimatedBlobGradient: View {
         }
     }
 
-    private func advance() {
-        let next = (currentFrame + 1) % keyframes.count
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.001) {
-            withAnimation(.easeInOut(duration: transitionDuration)) {
-                blobs = keyframes[next]
-            }
-            currentFrame = next
-            DispatchQueue.main.asyncAfter(deadline: .now() + transitionDuration) {
-                advance()
-            }
-        }
-    }
 }
 
 // MARK: - Hex colour convenience

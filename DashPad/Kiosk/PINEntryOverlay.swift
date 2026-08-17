@@ -51,9 +51,17 @@ struct PINEntryOverlay: View {
 
     // MARK: - Dot row
 
+    /// Slots to draw, and the length at which the entry is checked. Derived from the PIN actually
+    /// stored rather than fixed at `AppSettings.pinLength`: a PIN saved by a build older than the
+    /// fixed-length setup keypad can be longer, and this screen still has to accept it.
+    private var pinLength: Int {
+        let stored = kioskManager.storedPINLength
+        return stored > 0 ? stored : AppSettings.pinLength
+    }
+
     private var dotRow: some View {
         HStack(spacing: 18) {
-            ForEach(0..<6, id: \.self) { i in
+            ForEach(0..<pinLength, id: \.self) { i in
                 Circle()
                     .fill(i < entered.count ? Color.primary : Color.primary.opacity(0.2))
                     .frame(width: 14, height: 14)
@@ -65,16 +73,12 @@ struct PINEntryOverlay: View {
     // MARK: - Actions
 
     private func appendDigit(_ digit: String) {
-        guard entered.count < 6 else { return }
+        guard entered.count < pinLength else { return }
         entered += digit
         showError = false
 
-        let stored = kioskManager.storedPINLength
-        // Validate as soon as the entered length matches the stored PIN length.
-        // The max(stored, 4) floor prevents validating a 0-length PIN on the first digit
-        // in the edge case where storedPINLength returns an unexpected value.
-        let shouldValidate = entered.count == max(stored, 4)
-        if shouldValidate {
+        // Validate as soon as the entry fills the row.
+        if entered.count == pinLength {
             attemptValidation()
         }
     }
@@ -199,6 +203,10 @@ struct PadKey: View {
 
 struct PINSetupView: View {
     @Binding var savedPIN: String
+    /// Called once the confirmation matches and `savedPIN` has been written. Callers that need
+    /// to react to a successful setup must use this rather than diffing `savedPIN`: re-entering
+    /// the PIN that is already stored is a successful setup that changes no value.
+    var onSet: () -> Void = {}
     @Environment(\.dismiss) private var dismiss
 
     @State private var entered = ""
@@ -238,7 +246,7 @@ struct PINSetupView: View {
 
     private var dotRow: some View {
         HStack(spacing: 18) {
-            ForEach(0..<4, id: \.self) { i in
+            ForEach(0..<AppSettings.pinLength, id: \.self) { i in
                 Circle()
                     .fill(i < entered.count ? Color.primary : Color.primary.opacity(0.2))
                     .frame(width: 14, height: 14)
@@ -248,10 +256,10 @@ struct PINSetupView: View {
     }
 
     private func appendDigit(_ digit: String) {
-        guard entered.count < 4 else { return }
+        guard entered.count < AppSettings.pinLength else { return }
         entered += digit
         showError = false
-        if entered.count == 4 { submit() }
+        if entered.count == AppSettings.pinLength { submit() }
     }
 
     private func deleteDigit() {
@@ -264,6 +272,7 @@ struct PINSetupView: View {
         if isConfirming {
             if entered == firstEntry {
                 savedPIN = entered
+                onSet()
                 dismiss()
             } else {
                 withAnimation(.interpolatingSpring(stiffness: 600, damping: 10)) { shakeAmount = 12 }
