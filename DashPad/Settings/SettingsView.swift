@@ -121,7 +121,7 @@ struct SettingsView: View {
             }
         }
         .clearNavigationSplitViewBackground()
-        .presentationDetents([.medium, .large])
+        .centredSheetSizing()
         .sheet(isPresented: $showingSetupAssistant) {
             OnboardingView(onComplete: {
                 kioskManager.dismissSettings()

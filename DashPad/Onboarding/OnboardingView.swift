@@ -113,7 +113,7 @@ struct OnboardingView: View {
                 advance(from: 5)
             }
         }
-        .presentationDetents([.large])
+        .centredSheetSizing()
         .interactiveDismissDisabled(true)
         .onAppear {
             // A first run demands an explicit dashboard choice, so it starts empty. A re-run

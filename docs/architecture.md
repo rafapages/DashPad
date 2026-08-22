@@ -79,6 +79,17 @@ ContentView.sheet → SettingsView  (when showingSettings == true)
 
 `ContentView` is deliberately thin. It contains no logic beyond reading `KioskManager.displayState` and rendering the appropriate branch. The corner tap target is an invisible `Color.clear` rectangle sitting in the bottom-right of the safe area - `onTapGesture(count: 3)` calls `KioskManager.handleSecretTap()`.
 
+Both top-level sheets - `SettingsView` and `OnboardingView` - declare their size explicitly with
+`centredSheetSizing()` (`CentredSheetSizing`, an 800x640 `PresentationSizing`, on iOS 18+) rather
+than taking whatever the current release defaults to. Sheet sizing has moved twice: the narrow,
+centred *form* sheet became the iPad default in iPadOS 18, iPadOS 27 extended it to sheets that
+used to come up page-sized, and `.page` now fills the screen. A form sheet is narrow enough to
+report a compact horizontal size class, which collapses `SettingsView`'s `NavigationSplitView`
+into a single stacked column; a full-screen sheet is far more than a settings panel needs. 800pt
+keeps the sidebar beside the detail pane and matches the panel the app presented before iPadOS 27.
+For the same reason neither sheet uses `presentationDetents`: detents are a compact-height
+mechanism, and on iPad they now shrink the sheet instead of being ignored.
+
 ---
 
 ## KioskManager in detail
@@ -208,6 +219,7 @@ above the deployment target is gated, and the gates are collected in
 | API | Introduced | Fallback below it |
 | --- | --- | --- |
 | `containerBackground(_:for:)` (navigation placements) | iOS 18 | Standard opaque container background |
+| `presentationSizing(_:)` with `CentredSheetSizing` | iOS 18 | Page-sized sheet is already the default on 16/17 |
 | `ContentUnavailableView` | iOS 17 | `EmptyStatePlaceholder`, an icon-plus-title stack |
 | `onChange(of:)` two-parameter closure | iOS 17 | `onChangeCompat(of:perform:)`, the single-parameter overload |
 | `containerRelativeFrame(_:alignment:_:)` | iOS 17 | Container height measured via `ContainerHeightKey` preference |

@@ -29,6 +29,22 @@ extension View {
         }
     }
 
+    /// Pins a sheet to the centred panel size the app has always presented, rather than
+    /// letting each iPadOS release pick for it. iPadOS 18 made the narrow *form* sheet the
+    /// default, iPadOS 27 applies that default to sheets that used to come up page-sized, and
+    /// `.page` itself now fills the screen. A form sheet is narrow enough to report a compact
+    /// horizontal size class, which collapses `NavigationSplitView` into a single column.
+    /// `presentationSizing(_:)` is iOS 18+; on 16 and 17 the page-sized sheet is the default
+    /// and already close to this size.
+    @ViewBuilder
+    func centredSheetSizing() -> some View {
+        if #available(iOS 18.0, *) {
+            presentationSizing(CentredSheetSizing())
+        } else {
+            self
+        }
+    }
+
     /// `onChange(of:)` without the old value, which no call site in this app needs.
     /// The two-parameter closure is iOS 17+; the single-parameter `perform:` overload it
     /// replaced is deprecated there, so each is used only on the release that prefers it.
@@ -39,6 +55,24 @@ extension View {
         } else {
             onChange(of: value, perform: action)
         }
+    }
+}
+
+// MARK: - Sheet sizing
+
+/// The size behind `centredSheetSizing()`: the classic iPad page sheet, roughly two thirds of
+/// an 11-inch screen in landscape. Comfortably wider than the ~640pt where iPadOS switches a
+/// presentation to the compact horizontal size class, so the settings split view keeps its
+/// sidebar beside the detail pane.
+///
+/// The size is stated in points rather than as a fraction of the screen because
+/// `PresentationSizingContext` carries nothing about the container. The system clamps the
+/// proposal to the space it has, so smaller iPads and portrait orientation get less than this
+/// without the sheet overflowing.
+@available(iOS 18.0, *)
+struct CentredSheetSizing: PresentationSizing {
+    func proposedSize(for root: PresentationSizingRoot, context: PresentationSizingContext) -> ProposedViewSize {
+        ProposedViewSize(width: 800, height: 640)
     }
 }
 
