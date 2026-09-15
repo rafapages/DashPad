@@ -8,6 +8,12 @@ Swift
 
 > Source-available, non-commercial. Free to view, build, and use personally. Building or shipping a commercial product from this code requires a separate license. See [License](#license).
 
+<p align="center">
+  <a href="https://apps.apple.com/us/app/dashpad-kiosk/id6766830819">
+    <img src="docs/images/download-on-the-app-store.svg" alt="Download on the App Store" height="54">
+  </a>
+</p>
+
 ---
 
 <p align="center">
@@ -262,7 +268,13 @@ Because the source is available, you can verify every one of these claims in the
 
 **TestFlight beta — available now.** Want to run a signed build today without compiling it yourself? Join the public beta. <!-- TODO: add TestFlight link --> *(invite link coming shortly)*
 
-**App Store — coming soon.** A signed binary will be available on the App Store as a one-time purchase, for those who want the convenience of an installed, signed build. The link will be added on launch. It is built from this same codebase.
+**App Store — available now.** A signed binary is available on the [App Store](https://apps.apple.com/us/app/dashpad-kiosk/id6766830819) as a one-time purchase, for those who want the convenience of an installed, signed build. It is built from this same codebase.
+
+<p align="center">
+  <a href="https://apps.apple.com/us/app/dashpad-kiosk/id6766830819">
+    <img src="docs/images/download-on-the-app-store.svg" alt="Download on the App Store" height="54">
+  </a>
+</p>
 
 ---
 

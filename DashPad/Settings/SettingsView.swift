@@ -42,15 +42,41 @@ private enum SettingsCategory: String, CaseIterable, Identifiable {
 
 // MARK: - Tinted icon badge (iOS Settings style)
 
-private struct CategoryIcon: View {
-    let category: SettingsCategory
+private struct SidebarIcon: View {
+    let systemImage: String
+    let tint: Color
+
+    init(systemImage: String, tint: Color) {
+        self.systemImage = systemImage
+        self.tint = tint
+    }
+
+    init(category: SettingsCategory) {
+        self.init(systemImage: category.systemImage, tint: category.tint)
+    }
 
     var body: some View {
-        Image(systemName: category.systemImage)
+        Image(systemName: systemImage)
             .font(.system(size: 13, weight: .semibold))
             .foregroundStyle(.white)
             .frame(width: 30, height: 30)
-            .background(category.tint.gradient, in: RoundedRectangle(cornerRadius: 7))
+            .background(tint.gradient, in: RoundedRectangle(cornerRadius: 7))
+    }
+}
+
+// MARK: - App Store review link
+
+private enum AppStoreReview {
+    /// The app's Apple ID from App Store Connect (App Information → General → Apple ID).
+    /// While empty, the Rate DashPad row is hidden rather than linking to a page that doesn't exist.
+    static let appID = "6766830819"
+
+    /// Opens the App Store straight onto the write-a-review sheet. Used instead of
+    /// `requestReview`, which the system rate-limits and may silently ignore - Apple advises
+    /// against calling it from a button, since a tap that shows nothing looks broken.
+    static var url: URL? {
+        guard !appID.isEmpty else { return nil }
+        return URL(string: "https://apps.apple.com/app/id\(appID)?action=write-review")
     }
 }
 
@@ -59,6 +85,7 @@ private struct CategoryIcon: View {
 struct SettingsView: View {
     @EnvironmentObject var settings: AppSettings
     @EnvironmentObject var kioskManager: KioskManager
+    @Environment(\.openURL) private var openURL
     @State private var selectedCategory: SettingsCategory? = .dashboard
     @State private var cameraAuthorizationStatus = AVCaptureDevice.authorizationStatus(for: .video)
     @State private var showingAddFavourite = false
@@ -78,32 +105,37 @@ struct SettingsView: View {
                     Label {
                         Text(cat.rawValue)
                     } icon: {
-                        CategoryIcon(category: cat)
+                        SidebarIcon(category: cat)
                     }
                     .tag(cat)
                 }
             }
             .scrollContentBackground(.hidden)
             .safeAreaInset(edge: .bottom, spacing: 0) {
-                Button {
-                    showingSetupAssistant = true
-                } label: {
-                    Label {
-                        Text("Setup assistant")
-                    } icon: {
-                        Image(systemName: "wand.and.stars")
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundStyle(.white)
-                            .frame(width: 30, height: 30)
-                            .background(Color.secondary.gradient, in: RoundedRectangle(cornerRadius: 7))
+                VStack(spacing: 0) {
+                    if let reviewURL = AppStoreReview.url {
+                        sidebarFooterButton(action: { openURL(reviewURL) }) {
+                            Label {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Rate DashPad")
+                                    Text("It really helps")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                            } icon: {
+                                SidebarIcon(systemImage: "star.fill", tint: .pink)
+                            }
+                        }
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.leading, 30)
-                    .padding(.trailing, 16)
-                    .padding(.vertical, 11)
-                    .padding(.bottom, 8)
+                    sidebarFooterButton(action: { showingSetupAssistant = true }) {
+                        Label {
+                            Text("Setup assistant")
+                        } icon: {
+                            SidebarIcon(systemImage: "wand.and.stars", tint: .secondary)
+                        }
+                    }
                 }
-                .buttonStyle(.plain)
+                .padding(.bottom, 8)
             }
             .navigationTitle("DashPad")
             .toolbar {
@@ -132,6 +164,18 @@ struct SettingsView: View {
         .onDisappear {
             kioskManager.debugViewModel = nil
         }
+    }
+
+    /// A row pinned below the sidebar list, inset to line up with the category rows above it.
+    private func sidebarFooterButton<Content: View>(action: @escaping () -> Void, @ViewBuilder label: () -> Content) -> some View {
+        Button(action: action) {
+            label()
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.leading, 30)
+                .padding(.trailing, 16)
+                .padding(.vertical, 11)
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: - Detail router

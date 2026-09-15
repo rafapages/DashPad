@@ -5,6 +5,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added
+- Settings sidebar has a Rate DashPad row that opens the App Store's write-a-review page. Nothing
+  happens unless the user taps it; the app never prompts for a rating on its own.
+
 ### Fixed
 - Re-running Settings → Setup assistant no longer discards the configured dashboard URL. Since the
   URL step was reworked to require an explicit choice, it cleared the field on appear and could not
