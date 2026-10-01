@@ -10,7 +10,7 @@ Swift
 
 <p align="center">
   <a href="https://apps.apple.com/us/app/dashpad-kiosk/id6766830819">
-    <img src="docs/images/download-on-the-app-store.svg" alt="Download on the App Store" height="54">
+    <img src="assets/download-on-the-app-store.svg" alt="Download on the App Store" height="54">
   </a>
 </p>
 
@@ -272,7 +272,7 @@ Because the source is available, you can verify every one of these claims in the
 
 <p align="center">
   <a href="https://apps.apple.com/us/app/dashpad-kiosk/id6766830819">
-    <img src="docs/images/download-on-the-app-store.svg" alt="Download on the App Store" height="54">
+    <img src="assets/download-on-the-app-store.svg" alt="Download on the App Store" height="54">
   </a>
 </p>
 
