@@ -6,6 +6,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Added
+- Settings → Dashboard → Hide Status Bar hides the clock, date, battery and Wi-Fi indicators while
+  the dashboard is showing. On by default; the idle screen always hides the status bar.
 - Settings sidebar has a Rate DashPad row that opens the App Store's write-a-review page. Nothing
   happens unless the user taps it; the app never prompts for a rating on its own.
 

@@ -257,6 +257,12 @@ struct SettingsView: View {
             }
 
             Section {
+                Toggle("Hide Status Bar", isOn: s.hideStatusBar)
+            } footer: {
+                Text("Hides the clock, date, battery and Wi-Fi indicators at the top of the screen. The status bar is always hidden on the idle screen.")
+            }
+
+            Section {
                 ForEach(settings.favouriteURLs, id: \.self) { url in
                     HStack {
                         Text(url)
