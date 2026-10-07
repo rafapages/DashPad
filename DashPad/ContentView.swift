@@ -54,6 +54,9 @@ struct ContentView: View {
                     .zIndex(10)
             }
         }
+        // UIStatusBarHidden in Info.plist only covers launch; SwiftUI's hosting controller
+        // decides afterwards, so the idle screen has to request it explicitly.
+        .statusBarHidden(kioskManager.displayState == .idle)
         .sheet(isPresented: $kioskManager.showingSettings) {
             SettingsView()
         }
