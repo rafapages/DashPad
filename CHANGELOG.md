@@ -66,6 +66,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   camera — the exact case it exists for. It now shows in any presence mode.
 
 ### Changed
+- Lowered the deployment target from iOS/iPadOS 16.0 to 15.0, extending support to the iPad Air 2
+  and iPad mini 4. The iOS 16 APIs in use are gated in `Support/AvailabilityCompat.swift`: Settings
+  falls back to a column-style `NavigationView`, and `LabeledContent`, `NavigationStack`,
+  `UnevenRoundedRectangle`, `scrollContentBackground` and `Color.gradient` have compat stand-ins.
+  The PIN pad uses a fixed-column `LazyVGrid` instead of `Grid`, and `Task.sleep(for:)` calls use
+  the nanosecond overload.
 - Lowered the deployment target from iOS/iPadOS 18.6 to 16.0, extending support back to the iPad
   5th generation (2017) and the original iPad Pro (2015). See
   [Supported iPads](README.md#supported-ipads) for the caveats on the oldest devices.

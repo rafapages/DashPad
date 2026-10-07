@@ -108,7 +108,7 @@ struct BrowserDrawer: View {
     private func scheduleDismiss() {
         dismissTask?.cancel()
         dismissTask = Task {
-            try? await Task.sleep(for: .seconds(4))
+            try? await Task.sleep(nanoseconds: 4_000_000_000)
             guard !Task.isCancelled else { return }
             await MainActor.run { close(animated: true) }
         }
@@ -122,7 +122,7 @@ struct BrowserDrawer: View {
     private func scheduleDelayedClose() {
         dismissTask?.cancel()
         dismissTask = Task {
-            try? await Task.sleep(for: .seconds(0.6))
+            try? await Task.sleep(nanoseconds: 600_000_000)
             guard !Task.isCancelled else { return }
             await MainActor.run { close(animated: true) }
         }
@@ -199,14 +199,14 @@ private struct DrawerPanel: View {
         }
         .frame(width: 72)
         .background(
-            UnevenRoundedRectangle(
+            UnevenRoundedRectangleCompat(
                 topLeadingRadius: 16, bottomLeadingRadius: 16,
                 bottomTrailingRadius: 0, topTrailingRadius: 0
             )
             .fill(.ultraThinMaterial)
             .environment(\.colorScheme, .dark)
             .overlay(
-                UnevenRoundedRectangle(
+                UnevenRoundedRectangleCompat(
                     topLeadingRadius: 16, bottomLeadingRadius: 16,
                     bottomTrailingRadius: 0, topTrailingRadius: 0
                 )

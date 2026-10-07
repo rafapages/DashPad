@@ -206,11 +206,11 @@ The debug image (`CaptureResult.debugImage`) is a `UIImage` created from the cap
 
 ## Deployment target and back-deployment
 
-The deployment target is iOS/iPadOS 16.0, chosen so the app runs on the older iPads its use case
-depends on - an iPad 5th generation or original iPad Pro mounted on a wall is squarely the target
-user. 16.0 is also where the SwiftUI surface this app is built on begins: `NavigationSplitView`,
-`NavigationStack`, `scrollContentBackground`, `presentationDetents`, `LabeledContent`, `Grid` and
-`UnevenRoundedRectangle` are all iOS 16.
+The deployment target is iOS/iPadOS 15.0, chosen so the app runs on the older iPads its use case
+depends on - an iPad Air 2 or iPad 5th generation mounted on a wall is squarely the target user.
+Much of the SwiftUI surface this app is built on (`NavigationSplitView`, `NavigationStack`,
+`LabeledContent`, `UnevenRoundedRectangle`, `scrollContentBackground`) begins at iOS 16, so those
+are gated like everything else newer than the target.
 
 The app is still developed against the current SDK and uses newer APIs where they exist. Anything
 above the deployment target is gated, and the gates are collected in
@@ -219,11 +219,18 @@ above the deployment target is gated, and the gates are collected in
 | API | Introduced | Fallback below it |
 | --- | --- | --- |
 | `containerBackground(_:for:)` (navigation placements) | iOS 18 | Standard opaque container background |
-| `presentationSizing(_:)` with `CentredSheetSizing` | iOS 18 | Page-sized sheet is already the default on 16/17 |
+| `presentationSizing(_:)` with `CentredSheetSizing` | iOS 18 | Page-sized sheet is already the default on 15-17 |
 | `ContentUnavailableView` | iOS 17 | `EmptyStatePlaceholder`, an icon-plus-title stack |
 | `onChange(of:)` two-parameter closure | iOS 17 | `onChangeCompat(of:perform:)`, the single-parameter overload |
 | `containerRelativeFrame(_:alignment:_:)` | iOS 17 | Container height measured via `ContainerHeightKey` preference |
 | `AVCaptureConnection.videoRotationAngle` | iOS 17 | `videoOrientation`, mapped in `PresenceDetector.videoOrientation()` |
+| `NavigationSplitView` | iOS 16 | Column-style `NavigationView`; sidebar rows are tagged `NavigationLink`s (`SettingsView.splitView`) |
+| `NavigationStack` | iOS 16 | `NavigationStackCompat`, a stack-style `NavigationView` |
+| `LabeledContent` | iOS 16 | `LabeledRow`, a title / spacer / content `HStack` |
+| `UnevenRoundedRectangle` | iOS 16 | `UnevenRoundedRectangleCompat`, a hand-built path with circular corners |
+| `scrollContentBackground(_:)` | iOS 16 | `hiddenScrollContentBackground()` keeps the opaque grouped background |
+| `Color.gradient` | iOS 16 | `gradientCompat`, the flat colour |
+| `UIWindowScene.effectiveGeometry` | iOS 16 | `UIWindowScene.interfaceOrientation` |
 | `buttonStyle(.glass)` and Liquid Glass styling | iOS 26 | `LegacyCircleKeyStyle` in `PINEntryOverlay.swift` |
 
 Two things follow from this. Adding a modifier from a recent SDK means gating it the same way -
@@ -232,7 +239,7 @@ not identical across versions: older releases get the standard system appearance
 hand-built imitation of the newer one.
 
 Note that these fallback branches cannot be exercised on a modern simulator, which always takes
-the newest path. Verifying them needs an iOS 16 or 17 runtime, or real hardware.
+the newest path. Verifying them needs an iOS 15, 16 or 17 runtime, or real hardware.
 
 ---
 

@@ -322,7 +322,7 @@ struct OnboardingView: View {
         VStack(spacing: 0) {
             AnimatedBlobGradient()
                 .relativeContainerHeight(0.5, measuredContainerHeight: scrollViewportHeight)
-                .clipShape(UnevenRoundedRectangle(
+                .clipShape(UnevenRoundedRectangleCompat(
                     topLeadingRadius: 20, bottomLeadingRadius: 0,
                     bottomTrailingRadius: 0, topTrailingRadius: 20
                 ))

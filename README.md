@@ -3,7 +3,7 @@
 **A native iOS/iPadOS app that turns an iPad into a dedicated, always-on Home Assistant dashboard.**
 
 License: PolyForm NC
-Platform: iOS/iPadOS 16+
+Platform: iOS/iPadOS 15+
 Swift
 
 > Source-available, non-commercial. Free to view, build, and use personally. Building or shipping a commercial product from this code requires a separate license. See [License](#license).
@@ -81,20 +81,19 @@ The commercial iOS kiosk apps are priced and designed for retail and museum depl
 ## Requirements
 
 - Xcode 16 or later
-- iOS / iPadOS 16.0 deployment target (developed and tested on iOS 26)
+- iOS / iPadOS 15.0 deployment target (developed and tested on iOS 26)
 - An Apple ID for code signing
 - A **physical iPad**. The simulator has no camera and cannot run the presence detection pipeline.
 
 ### Supported iPads
 
-The iPadOS 16 floor covers every iPad back to the iPad 5th generation (2017) and the original
-iPad Pro (2015), plus iPad Air 3rd generation and later and iPad mini 5th generation and later.
-The cutoff is the A9 chip: the iPad Air 2 and iPad mini 4 top out at iPadOS 15 and are not
-supported. Newer APIs are used where available and fall back to the standard system appearance
+The iPadOS 15 floor covers every iPad back to the iPad Air 2 (2014) and iPad mini 4 (2015), which
+top out at iPadOS 15, plus the iPad 5th generation and later, every iPad Pro, iPad Air 3rd
+generation and later and iPad mini 5th generation and later. Newer APIs are used where available and fall back to the standard system appearance
 elsewhere, so the app looks its best on iOS 26 but is fully functional below it.
 
 Bear in mind that the oldest supported devices are constrained for reasons that have nothing to
-do with the deployment target. The iPad 5th generation and 9.7-inch iPad Pro have 2 GB of RAM, and a
+do with the deployment target. The iPad Air 2, iPad mini 4, iPad 5th generation and 9.7-inch iPad Pro have 2 GB of RAM, and a
 Home Assistant dashboard in `WKWebView` alongside a live camera session is close to their limit;
 if you hit memory pressure, prefer Schedule mode over Automatic (Camera). Vision's body detection
 is also considerably heavier than face detection on an A8X, so `Face` mode and a slower sample

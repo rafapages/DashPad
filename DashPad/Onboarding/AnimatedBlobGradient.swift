@@ -126,7 +126,7 @@ extension Color {
 #Preview {
     AnimatedBlobGradient()
         .frame(height: 300)
-        .clipShape(UnevenRoundedRectangle(
+        .clipShape(UnevenRoundedRectangleCompat(
             topLeadingRadius: 20, bottomLeadingRadius: 0,
             bottomTrailingRadius: 0, topTrailingRadius: 20
         ))

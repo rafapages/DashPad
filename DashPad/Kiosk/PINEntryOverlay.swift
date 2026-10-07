@@ -112,19 +112,17 @@ struct NumPadView: View {
     let onDelete: () -> Void
     let onCancel: () -> Void
 
-    private let rows = [["1","2","3"], ["4","5","6"], ["7","8","9"], ["cancel","0","del"]]
+    private let keys = ["1","2","3", "4","5","6", "7","8","9", "cancel","0","del"]
+    private let columns = Array(repeating: GridItem(.fixed(80), spacing: 14), count: 3)
 
     var body: some View {
-        // Grid ensures every column is the same width regardless of button style
-        Grid(horizontalSpacing: 14, verticalSpacing: 14) {
-            ForEach(rows, id: \.self) { row in
-                GridRow {
-                    ForEach(row, id: \.self) { key in
-                        PadKey(key: key, onDigit: onDigit, onDelete: onDelete, onCancel: onCancel)
-                    }
-                }
+        // Fixed columns keep every key the same width regardless of button style
+        LazyVGrid(columns: columns, spacing: 14) {
+            ForEach(keys, id: \.self) { key in
+                PadKey(key: key, onDigit: onDigit, onDelete: onDelete, onCancel: onCancel)
             }
         }
+        .fixedSize()
     }
 }
 

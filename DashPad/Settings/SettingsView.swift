@@ -60,7 +60,7 @@ private struct SidebarIcon: View {
             .font(.system(size: 13, weight: .semibold))
             .foregroundStyle(.white)
             .frame(width: 30, height: 30)
-            .background(tint.gradient, in: RoundedRectangle(cornerRadius: 7))
+            .background(tint.gradientCompat, in: RoundedRectangle(cornerRadius: 7))
     }
 }
 
@@ -97,20 +97,81 @@ struct SettingsView: View {
     @State private var showingSetupAssistant = false
 
     var body: some View {
+        splitView
+            .clearNavigationSplitViewBackground()
+            .centredSheetSizing()
+            .sheet(isPresented: $showingSetupAssistant) {
+                OnboardingView(onComplete: {
+                    kioskManager.dismissSettings()
+                }, isRerun: true)
+                .environmentObject(settings)
+                .environmentObject(kioskManager)
+            }
+            .onDisappear {
+                kioskManager.debugViewModel = nil
+            }
+    }
+
+    /// `NavigationSplitView` is iOS 16+. iOS 15 gets the column-style `NavigationView` it
+    /// replaced, where the sidebar drives the detail column through tagged navigation links
+    /// because `List(selection:)` only selects in edit mode there.
+    @ViewBuilder
+    private var splitView: some View {
         let s = $settings
 
-        NavigationSplitView {
-            List(selection: $selectedCategory) {
-                ForEach(SettingsCategory.allCases) { cat in
-                    Label {
-                        Text(cat.rawValue)
-                    } icon: {
-                        SidebarIcon(category: cat)
+        if #available(iOS 16.0, *) {
+            NavigationSplitView {
+                sidebar {
+                    List(selection: $selectedCategory) {
+                        ForEach(SettingsCategory.allCases) { cat in
+                            categoryLabel(cat)
+                                .tag(cat)
+                        }
                     }
-                    .tag(cat)
                 }
+            } detail: {
+                detailPane(s)
             }
-            .scrollContentBackground(.hidden)
+        } else {
+            NavigationView {
+                sidebar {
+                    List {
+                        ForEach(SettingsCategory.allCases) { cat in
+                            NavigationLink(tag: cat, selection: $selectedCategory) {
+                                detailContent(for: cat, s: s)
+                            } label: {
+                                categoryLabel(cat)
+                            }
+                        }
+                    }
+                }
+                detailPane(s)
+            }
+            .navigationViewStyle(.columns)
+        }
+    }
+
+    private func categoryLabel(_ cat: SettingsCategory) -> some View {
+        Label {
+            Text(cat.rawValue)
+        } icon: {
+            SidebarIcon(category: cat)
+        }
+    }
+
+    @ViewBuilder
+    private func detailPane(_ s: EnvironmentObject<AppSettings>.Wrapper) -> some View {
+        if let category = selectedCategory {
+            detailContent(for: category, s: s)
+        } else {
+            EmptyStatePlaceholder(title: "Select a setting", systemImage: "gear")
+        }
+    }
+
+    /// The category list with the sidebar's footer rows, title and Done button.
+    private func sidebar<Content: View>(@ViewBuilder list: () -> Content) -> some View {
+        list()
+            .hiddenScrollContentBackground()
             .safeAreaInset(edge: .bottom, spacing: 0) {
                 VStack(spacing: 0) {
                     if let reviewURL = AppStoreReview.url {
@@ -145,25 +206,6 @@ struct SettingsView: View {
                     }
                 }
             }
-        } detail: {
-            if let category = selectedCategory {
-                detailContent(for: category, s: s)
-            } else {
-                EmptyStatePlaceholder(title: "Select a setting", systemImage: "gear")
-            }
-        }
-        .clearNavigationSplitViewBackground()
-        .centredSheetSizing()
-        .sheet(isPresented: $showingSetupAssistant) {
-            OnboardingView(onComplete: {
-                kioskManager.dismissSettings()
-            }, isRerun: true)
-            .environmentObject(settings)
-            .environmentObject(kioskManager)
-        }
-        .onDisappear {
-            kioskManager.debugViewModel = nil
-        }
     }
 
     /// A row pinned below the sidebar list, inset to line up with the category rows above it.
@@ -197,14 +239,14 @@ struct SettingsView: View {
     private func dashboardDetail(_ s: EnvironmentObject<AppSettings>.Wrapper) -> some View {
         Form {
             Section {
-                LabeledContent("Home URL") {
+                LabeledRow("Home URL") {
                     TextField("http://homeassistant.local:8123", text: s.homeURL)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                         .keyboardType(.URL)
                         .multilineTextAlignment(.trailing)
                 }
-                LabeledContent("Allowed Domains") {
+                LabeledRow("Allowed Domains") {
                     TextField("Leave empty to allow all", text: s.allowedDomains)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
@@ -255,7 +297,7 @@ struct SettingsView: View {
                 Text("Swipe right to set as Home URL. Swipe left to delete.")
             }
         }
-        .scrollContentBackground(.hidden)
+        .hiddenScrollContentBackground()
         .clearNavigationBackground()
         .navigationTitle("Dashboard")
         .navigationBarTitleDisplayMode(.inline)
@@ -308,7 +350,7 @@ struct SettingsView: View {
                 Text("Locks the device to this app using Guided Access.")
             }
         }
-        .scrollContentBackground(.hidden)
+        .hiddenScrollContentBackground()
         .clearNavigationBackground()
         .navigationTitle("Kiosk Lock")
         .navigationBarTitleDisplayMode(.inline)
@@ -347,7 +389,7 @@ struct SettingsView: View {
                 EmptyView()
             }
         }
-        .scrollContentBackground(.hidden)
+        .hiddenScrollContentBackground()
         .clearNavigationBackground()
         .navigationTitle("Presence")
         .navigationBarTitleDisplayMode(.inline)
@@ -366,7 +408,7 @@ struct SettingsView: View {
             cameraAuthorizationStatus = AVCaptureDevice.authorizationStatus(for: .video)
         }
         .sheet(item: $addWindowRequest) { request in
-            NavigationStack {
+            NavigationStackCompat {
                 ScheduleWindowEditView(
                     initial: ScheduleWindow(startMinute: 480, endMinute: 1320),
                     allWindows: settings.weeklySchedule.windows[request.dayIndex],
@@ -581,7 +623,7 @@ struct SettingsView: View {
                     settings.idleScreenType = .customURL
                 }
                 if settings.idleScreenType == .customURL {
-                    LabeledContent("URL") {
+                    LabeledRow("URL") {
                         TextField("http://", text: s.idleCustomURL)
                             .textInputAutocapitalization(.never)
                             .autocorrectionDisabled()
@@ -603,7 +645,7 @@ struct SettingsView: View {
             }
         }
         .animation(.default, value: settings.idleScreenType)
-        .scrollContentBackground(.hidden)
+        .hiddenScrollContentBackground()
         .clearNavigationBackground()
         .navigationTitle("Idle Screen")
         .navigationBarTitleDisplayMode(.inline)
@@ -619,7 +661,7 @@ struct SettingsView: View {
                 SliderRow(label: "Idle", value: s.idleBrightness, range: 0...1, step: 0.05, unit: "%", displayMultiplier: 100)
             }
         }
-        .scrollContentBackground(.hidden)
+        .hiddenScrollContentBackground()
         .clearNavigationBackground()
         .navigationTitle("Brightness")
         .navigationBarTitleDisplayMode(.inline)
@@ -641,7 +683,7 @@ struct SettingsView: View {
                 Text("Injected at page load via WKUserScript. Changes take effect on next page load.")
             }
         }
-        .scrollContentBackground(.hidden)
+        .hiddenScrollContentBackground()
         .clearNavigationBackground()
         .navigationTitle("Injection")
         .navigationBarTitleDisplayMode(.inline)
@@ -701,7 +743,7 @@ private struct ScheduleWindowEditView: View {
         }
         .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
-        .scrollContentBackground(.hidden)
+        .hiddenScrollContentBackground()
         .clearNavigationBackground()
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {

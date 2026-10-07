@@ -25,7 +25,7 @@ struct KioskBrowserView: View {
             // Debounce: TextField fires on every keystroke; only reload after user stops typing.
             urlReloadTask?.cancel()
             urlReloadTask = Task {
-                try? await Task.sleep(for: .seconds(1))
+                try? await Task.sleep(nanoseconds: 1_000_000_000)
                 guard !Task.isCancelled else { return }
                 webController.goHome(url: newURL)
             }

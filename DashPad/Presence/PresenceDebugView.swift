@@ -104,7 +104,7 @@ struct PresenceDebugSections: View {
 
     @ViewBuilder
     private func statusRow(_ label: String, value: String) -> some View {
-        LabeledContent(label) {
+        LabeledRow(label) {
             Text(value)
                 .font(.system(.body, design: .monospaced))
         }

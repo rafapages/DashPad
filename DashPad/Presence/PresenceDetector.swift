@@ -133,7 +133,12 @@ class PresenceDetector: NSObject {
             guard let scene = UIApplication.shared.connectedScenes
                 .compactMap({ $0 as? UIWindowScene }).first
             else { return }
-            orientation = scene.effectiveGeometry.interfaceOrientation
+            // `effectiveGeometry` is iOS 16+; the scene property it supersedes covers iOS 15.
+            if #available(iOS 16.0, *) {
+                orientation = scene.effectiveGeometry.interfaceOrientation
+            } else {
+                orientation = scene.interfaceOrientation
+            }
         }
         return orientation
     }
