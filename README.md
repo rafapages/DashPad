@@ -52,7 +52,7 @@ The commercial iOS kiosk apps are priced and designed for retail and museum depl
 
 ## Features
 
-**Full-screen kiosk browser.** Loads your dashboard URL in a `WKWebView` that fills the entire display. Auto-reloads on connection loss. Scroll bounce, text selection, and context menus are all disabled. Navigation outside a configurable domain allowlist is blocked.
+**Full-screen kiosk browser.** Loads your dashboard URL in a `WKWebView` that fills the entire display. Works with plain-HTTP dashboards on any local hostname. If the dashboard can't be reached, it says why and retries every 10 seconds. Scroll bounce, text selection, and context menus are all disabled. Navigation outside a configurable domain allowlist is blocked.
 
 **Flexible presence control, three modes.** Choose how the app decides when to show the dashboard:
 

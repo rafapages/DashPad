@@ -124,15 +124,20 @@ extension View {
 // MARK: - ContentUnavailableView
 
 /// Stand-in for `ContentUnavailableView`, which is iOS 17+. The fallback reproduces the
-/// system layout closely enough for the one placeholder this app shows (the empty
-/// settings detail pane), without trying to be a general-purpose replacement.
+/// system layout closely enough for the placeholders this app shows (the empty settings
+/// detail pane, the dashboard load failure), without trying to be a general-purpose replacement.
 struct EmptyStatePlaceholder: View {
     let title: String
     let systemImage: String
+    var description: String? = nil
 
     var body: some View {
         if #available(iOS 17.0, *) {
-            ContentUnavailableView(title, systemImage: systemImage)
+            ContentUnavailableView(
+                title,
+                systemImage: systemImage,
+                description: description.map { Text($0) }
+            )
         } else {
             VStack(spacing: 12) {
                 Image(systemName: systemImage)
@@ -141,7 +146,14 @@ struct EmptyStatePlaceholder: View {
                 Text(title)
                     .font(.title2.weight(.semibold))
                     .foregroundStyle(.secondary)
+                if let description {
+                    Text(description)
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                }
             }
+            .padding()
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }

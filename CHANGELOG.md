@@ -12,6 +12,21 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   happens unless the user taps it; the app never prompts for a rating on its own.
 
 ### Fixed
+- Dashboards served over plain HTTP on a hostname that isn't `.local`, an IP address or a single
+  label (e.g. `http://ha.home.lan:8123`) showed a blank screen. App Transport Security blocked
+  them; `NSAllowsArbitraryLoadsInWebContent` now allows plain HTTP in the WebView only
+  ([#4](https://github.com/rafapages/DashPad/issues/4)).
+- A dashboard that fails to load now shows "Can't reach dashboard" with the URL and the reason,
+  instead of a blank screen, while it keeps retrying every 10 seconds. Credentials and query
+  parameters are removed from the URL before it is shown.
+- A home URL blocked by Allowed Domains now says so instead of showing a blank screen. It reloads
+  as soon as the allowlist changes.
+- A link that fails to load no longer takes over the screen: the dashboard stays where it was.
+- The dashboard reloads by itself if iOS terminates the WebView's content process, which used to
+  leave a blank screen.
+- The 10-second retry no longer fires after a successful navigation. A load interrupted by a newer
+  one scheduled a retry that was never cancelled, so tapping a link could jump back to the home URL
+  10 seconds later.
 - Re-running Settings → Setup assistant no longer discards the configured dashboard URL. Since the
   URL step was reworked to require an explicit choice, it cleared the field on appear and could not
   be passed without picking a card — so any re-run replaced a custom `homeURL` with the Home

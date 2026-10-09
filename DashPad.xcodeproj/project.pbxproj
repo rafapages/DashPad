@@ -260,6 +260,7 @@
 				DEVELOPMENT_TEAM = 2233G77YY9;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "DashPad-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = DashPad;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_NSCameraUsageDescription = "DashPad uses the front camera to detect your presence and automatically show or hide the dashboard. Video is processed entirely on-device and never stored or transmitted.";
@@ -299,6 +300,7 @@
 				DEVELOPMENT_TEAM = 2233G77YY9;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "DashPad-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = DashPad;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_NSCameraUsageDescription = "DashPad uses the front camera to detect your presence and automatically show or hide the dashboard. Video is processed entirely on-device and never stored or transmitted.";

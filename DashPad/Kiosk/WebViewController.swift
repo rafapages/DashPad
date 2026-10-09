@@ -4,18 +4,33 @@
 import Combine
 import WebKit
 
+/// Why the dashboard couldn't be shown. Cleared as soon as a navigation finishes.
+struct LoadFailure: Equatable {
+    /// Already stripped of credentials and query: it is shown on a wall-mounted screen.
+    let url: String
+    let reason: String
+    /// False when retrying can't help, e.g. the allowlist blocks the dashboard itself.
+    let willRetry: Bool
+}
+
 class WebViewController: ObservableObject {
+    /// Delay before a failed dashboard load is retried.
+    static let retryInterval: TimeInterval = 10
+
     // Not @Published: the web view reference is plumbing, never rendered.
     weak var webView: WKWebView?
+    // Not @Published: identifies the in-flight home load so failures can tell it apart from links.
+    var homeNavigation: WKNavigation?
     @Published var zoomLevel: Double = 1.0
     @Published var canGoBack: Bool = false
     @Published var currentURL: URL? = nil
+    @Published var loadFailure: LoadFailure? = nil
 
     func reload() { webView?.reload() }
 
     func goHome(url: String) {
         guard let wv = webView, let u = URL(string: url) else { return }
-        wv.load(URLRequest(url: u))
+        homeNavigation = wv.load(URLRequest(url: u))
     }
 
     func goBack() { webView?.goBack() }

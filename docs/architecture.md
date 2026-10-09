@@ -27,7 +27,8 @@ DashPad/
 ├── ContentView.swift         Root view; switches between KioskBrowserView and IdleView
 │
 ├── Kiosk/
-│   └── KioskBrowserView.swift   WKWebView wrapper; navigation policy; reload
+│   ├── KioskBrowserView.swift   WKWebView wrapper; navigation policy; reload; load-failure state
+│   └── WebViewController.swift  Observable handle on the WebView (zoom, back, load failure)
 │
 ├── Presence/
 │   ├── PresenceDetector.swift   AVCaptureSession; luminance check; Vision request; CaptureResult
@@ -166,7 +167,25 @@ Note: the user-facing settings UI for custom CSS/JS is currently disabled. The i
 
 ### Reload on failure
 
-`webView(_:didFailProvisionalNavigation:)` and `webView(_:didFail:)` both call `scheduleRetry(webView:)`, which sets a 10-second `Timer` to reload the home URL. If the connection is still down after 10 seconds, the timer fires again.
+Every load of the home URL goes through `WebViewController.goHome(url:)`, which records the returned `WKNavigation` as `homeNavigation`. That lets the failure handler tell a failed dashboard load apart from a failed link.
+
+`webView(_:didFailProvisionalNavigation:)` and `webView(_:didFail:)` both go through `handleFailure(_:navigation:provisional:)`, which works through these rules in order:
+
+- **Abandoned, not failed.** `NSURLErrorCancelled` (superseded by a newer navigation) and WebKit errors 101 (a link to a scheme the WebView can't open, such as `mailto:`), 102 (cancelled by the allowlist policy) and 204 (media handed to the system player) are ignored.
+- **Failed link, page still showing.** A provisional failure that isn't the home navigation, while a page is already loaded, is ignored too, so the working dashboard stays usable.
+- **Anything else.** Sets `WebViewController.loadFailure`, which `KioskBrowserView` renders as a "Can't reach dashboard" placeholder, and schedules a reload of the home URL after `WebViewController.retryInterval` (10 seconds). The URL on that screen has its credentials, query and fragment removed, because the screen is visible to anyone in the room.
+
+`webView(_:didFinish:)` clears `loadFailure` and cancels any pending retry, so a successful navigation is never followed by a jump back to the home URL.
+
+If the allowlist blocks the home URL's own host, `decidePolicyFor` sets a `loadFailure` with `willRetry: false`, since retrying can't help. `KioskBrowserView` reloads the dashboard when Allowed Domains changes.
+
+If iOS terminates the web content process (`webViewWebContentProcessDidTerminate`), the dashboard is reloaded from the home URL.
+
+### App Transport Security
+
+Most of the Info.plist is generated from `INFOPLIST_KEY_*` build settings, but those cannot express nested dictionaries, so `DashPad-Info.plist` at the repository root holds the one key that needs it: `NSAppTransportSecurity` → `NSAllowsArbitraryLoadsInWebContent = YES`. Xcode merges it with the generated keys. It lives outside the synchronized `DashPad/` folder so it is not also copied as a resource.
+
+The key lets `WKWebView` load plain-HTTP dashboards on any hostname (e.g. `http://ha.home.lan:8123`). Without it, default ATS only allows plain HTTP to IP addresses, single-label hostnames and `.local` names. It applies to web content only; any native networking keeps the default ATS policy.
 
 ---
 
