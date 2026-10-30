@@ -193,7 +193,7 @@ Every load of the home URL goes through `WebViewController.goHome(url:)`, which 
 
 - **Abandoned, not failed.** `LoadFailure.isAbandonedLoad(_:)`: `NSURLErrorCancelled` (superseded by a newer navigation) and WebKit errors 101 (a link to a scheme the WebView can't open, such as `mailto:`), 102 (cancelled by the allowlist policy) and 204 (media handed to the system player) are ignored.
 - **Failed link, page still showing.** A provisional failure that isn't the home navigation, while a page is already loaded, is ignored too, so the working dashboard stays usable.
-- **Anything else.** Sets `WebViewController.loadFailure`, which `KioskBrowserView` renders as a "Can't reach dashboard" placeholder, and schedules a reload of the home URL after `WebViewController.retryInterval` (10 seconds). The URL on that screen goes through `LoadFailure.displayString(for:)`, which removes credentials, query and fragment, because the screen is visible to anyone in the room.
+- **Anything else.** Sets `WebViewController.loadFailure`, which `KioskBrowserView` renders as a "Can't reach dashboard" placeholder with an Open Settings button, and schedules a reload of the home URL after `WebViewController.retryInterval` (10 seconds). The URL on that screen goes through `LoadFailure.displayString(for:)`, which removes credentials, query and fragment, because the screen is visible to anyone in the room. For the same reason Open Settings calls `KioskManager.handleSecretTap()`, the corner gesture's path, so a PIN still has to be entered.
 
 `webView(_:didFinish:)` clears `loadFailure` and cancels any pending retry, so a successful navigation is never followed by a jump back to the home URL.
 

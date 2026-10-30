@@ -196,6 +196,10 @@ extension AppSettings {
     /// and the clock is shown instead.
     var idleWebURL: URL? { Self.webURL(from: idleCustomURL) }
 
+    /// Home Assistant's public demo, offered to anyone without a server of their own (App Review
+    /// included) so the dashboard can be tried without first seeing "Can't reach dashboard".
+    static let homeAssistantDemoURL = "https://demo.home-assistant.io"
+
     /// Parses user-entered text as a page DashPad can load: http or https, with a host.
     /// Without the host check, `"http://"` or `"ha.local"` parse fine and load a blank page.
     static func webURL(from text: String) -> URL? {

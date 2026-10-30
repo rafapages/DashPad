@@ -118,7 +118,7 @@ git clone https://github.com/rafapages/DashPad.git
 3. Set a unique bundle identifier. The default `com.example.dashpad` is a placeholder and will collide; change it to something of your own (e.g. `com.yourname.dashpad`).
 4. Build and run on a physical iPad (`⌘R`). A camera and Guided Access need real hardware.
 
-On first launch, an onboarding flow walks you through setup: setting your Home URL, granting camera permission, choosing an idle screen, and optionally setting a PIN.
+On first launch, an onboarding flow walks you through setup: setting your Home URL, granting camera permission, choosing an idle screen, and optionally setting a PIN. No Home Assistant server? Pick **Home Assistant demo** to load the public demo at `https://demo.home-assistant.io` (also available in Settings → Dashboard).
 
 ### First-run checklist
 

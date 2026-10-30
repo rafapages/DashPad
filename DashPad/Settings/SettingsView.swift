@@ -294,6 +294,17 @@ struct SettingsView: View {
             }
 
             Section {
+                Button {
+                    settings.homeURL = AppSettings.homeAssistantDemoURL
+                } label: {
+                    Label("Use Home Assistant Demo", systemImage: "play.rectangle")
+                }
+                .disabled(settings.homeURL == AppSettings.homeAssistantDemoURL)
+            } footer: {
+                Text("Don't have Home Assistant? Load the public demo dashboard to see how DashPad would look. Replace it with your own URL at any time.")
+            }
+
+            Section {
                 Toggle("Hide Status Bar", isOn: s.hideStatusBar)
             } footer: {
                 Text("Hides the clock, date, battery and Wi-Fi indicators at the top of the screen. The status bar is always hidden on the idle screen.")

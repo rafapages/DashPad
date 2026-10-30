@@ -141,14 +141,19 @@ struct EmptyStatePlaceholder: View {
     let title: String
     let systemImage: String
     var description: String? = nil
+    /// An optional button below the description, e.g. a way out of the dashboard load failure.
+    var actionTitle: String? = nil
+    var action: (() -> Void)? = nil
 
     var body: some View {
         if #available(iOS 17.0, *) {
-            ContentUnavailableView(
-                title,
-                systemImage: systemImage,
-                description: description.map { Text($0) }
-            )
+            ContentUnavailableView {
+                Label(title, systemImage: systemImage)
+            } description: {
+                if let description { Text(description) }
+            } actions: {
+                actionButton
+            }
         } else {
             VStack(spacing: 12) {
                 Image(systemName: systemImage)
@@ -163,9 +168,24 @@ struct EmptyStatePlaceholder: View {
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
                 }
+                actionButton
+                    .padding(.top, 8)
             }
             .padding()
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+    }
+
+    @ViewBuilder
+    private var actionButton: some View {
+        if let actionTitle, let action {
+            if #available(iOS 26, *) {
+                Button(actionTitle, action: action)
+                    .buttonStyle(.glassProminent)
+            } else {
+                Button(actionTitle, action: action)
+                    .buttonStyle(.borderedProminent)
+            }
         }
     }
 }

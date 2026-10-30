@@ -35,6 +35,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Clock time format: choose System, 12-hour or 24-hour for every clock face that shows the hour
   in digits. System follows the iPad's Date & Time setting, as before.
 
+- Home Assistant demo: onboarding offers a "Home Assistant demo" option for anyone without a
+  server, loading the public demo at https://demo.home-assistant.io. Settings → Dashboard has a
+  "Use Home Assistant Demo" button that does the same.
+- The "Can't reach dashboard" screen explains that the URL isn't working, says when DashPad will
+  retry, and has an Open Settings button. It asks for the PIN first when one is set.
+
 ### Changed
 - The original Digital and Analog clocks are now called Dark Digital and Dark Analog, marked as
   night friendly. They look the same as before, and existing users keep their choice. Both now

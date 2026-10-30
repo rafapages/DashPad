@@ -22,7 +22,7 @@ struct OnboardingView: View {
     @EnvironmentObject private var kioskManager: KioskManager
     @Environment(\.dismiss) private var dismiss
 
-    private enum URLSetupMode { case homeAssistant, website }
+    private enum URLSetupMode { case homeAssistant, homeAssistantDemo, website }
 
     @State private var step = 1
     @State private var slideForward = true
@@ -127,7 +127,11 @@ struct OnboardingView: View {
             // default, because step 3 cannot be passed without picking a card.
             if isRerun, !settings.homeURL.trimmingCharacters(in: .whitespaces).isEmpty {
                 urlText = settings.homeURL.trimmingCharacters(in: .whitespaces)
-                urlSetupMode = urlText == Self.homeAssistantDefaultURL ? .homeAssistant : .website
+                switch urlText {
+                case Self.homeAssistantDefaultURL:      urlSetupMode = .homeAssistant
+                case AppSettings.homeAssistantDemoURL:  urlSetupMode = .homeAssistantDemo
+                default:                                urlSetupMode = .website
+                }
             } else {
                 urlText = ""
                 urlSetupMode = nil
@@ -456,6 +460,12 @@ struct OnboardingView: View {
                     description: "Pre-fills the default local address. You can still edit it if your setup is different."
                 )
                 urlModeCard(
+                    mode: .homeAssistantDemo,
+                    icon: "play.rectangle",
+                    title: "Home Assistant demo",
+                    description: "I don't have Home Assistant, but I'd like to see how it would look. Loads the public demo dashboard."
+                )
+                urlModeCard(
                     mode: .website,
                     icon: "globe",
                     title: "A website or custom URL",
@@ -463,7 +473,8 @@ struct OnboardingView: View {
                 )
             }
 
-            if urlSetupMode != nil {
+            // The demo's address is fixed, so there is nothing to type.
+            if urlSetupMode != nil && urlSetupMode != .homeAssistantDemo {
                 VStack(alignment: .leading, spacing: 6) {
                     TextField("http://", text: $urlText)
                         .keyboardType(.URL)
@@ -490,7 +501,11 @@ struct OnboardingView: View {
         Button {
             withAnimation(.easeInOut(duration: 0.2)) {
                 urlSetupMode = mode
-                urlText = mode == .homeAssistant ? "http://homeassistant.local:8123" : ""
+                switch mode {
+                case .homeAssistant:     urlText = Self.homeAssistantDefaultURL
+                case .homeAssistantDemo: urlText = AppSettings.homeAssistantDemoURL
+                case .website:           urlText = ""
+                }
                 urlError = nil
             }
         } label: {

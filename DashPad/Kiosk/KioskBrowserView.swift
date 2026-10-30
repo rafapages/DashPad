@@ -22,7 +22,10 @@ struct KioskBrowserView: View {
                 EmptyStatePlaceholder(
                     title: "Can't reach dashboard",
                     systemImage: "wifi.exclamationmark",
-                    description: failureDescription(failure)
+                    description: failureDescription(failure),
+                    actionTitle: "Open Settings",
+                    // Same path as the corner gesture, so a PIN still guards Settings on a wall-mounted iPad.
+                    action: kioskManager.handleSecretTap
                 )
                 .background(Color.black.ignoresSafeArea())
                 .environment(\.colorScheme, .dark)
@@ -47,9 +50,11 @@ struct KioskBrowserView: View {
     }
 
     private func failureDescription(_ failure: LoadFailure) -> String {
-        var text = "\(failure.url)\n\n\(failure.reason)"
+        var text = "Looks like the URL you provided isn't working.\n\n\(failure.url)\n\(failure.reason)"
         if failure.willRetry {
-            text += "\n\nDashPad will reload your dashboard in \(Int(WebViewController.retryInterval)) seconds."
+            text += "\n\nDashPad will reload your dashboard in \(Int(WebViewController.retryInterval)) seconds. You can also change the URL in Settings → Dashboard."
+        } else {
+            text += "\n\nYou can change this in Settings → Dashboard."
         }
         return text
     }
