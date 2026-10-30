@@ -353,7 +353,7 @@ struct OnboardingView: View {
                     .font(.largeTitle.weight(.bold))
                     .multilineTextAlignment(.center)
 
-                Text("Turn your iPad into a dedicated, always-on kiosk display. This takes about a minute to set up, and everything can be changed later in Settings.")
+                Text("Turn your device into a dedicated, always-on kiosk display. This takes about a minute to set up, and everything can be changed later in Settings.")
                     .font(.body)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
@@ -433,7 +433,7 @@ struct OnboardingView: View {
     /// row in iOS Settings cannot fix - so the two states are worded differently.
     private var cameraUnavailableMessage: String {
         cameraStatus == .restricted
-            ? "Camera use is switched off for this iPad by Screen Time or a device management profile. Presence detection will stay off and DashPad will keep the dashboard always on."
+            ? "Camera use is switched off for this device by Screen Time or a device management profile. Presence detection will stay off and DashPad will keep the dashboard always on."
             : "Camera access for DashPad is currently off, so presence detection will stay off. You can allow it in iOS Settings → Privacy & Security → Camera, then pick Automatic in Settings → Presence."
     }
 
@@ -624,7 +624,7 @@ struct OnboardingView: View {
             stepHeader(
                 icon: "lock.fill",
                 title: "PIN lock",
-                body: "Without a PIN, anyone who knows the gesture can open Settings. If this iPad is in a shared or public space, a PIN is worth setting."
+                body: "Without a PIN, anyone who knows the gesture can open Settings. If this device is in a shared or public space, a PIN is worth setting."
             )
 
             InfoBox(title: "Good to know") {

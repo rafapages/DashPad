@@ -302,7 +302,7 @@ struct SettingsView: View {
             Section {
                 Toggle("Prevent Auto-Lock", isOn: s.preventAutoLock)
             } footer: {
-                Text("Keeps the iPad awake and unlocked while DashPad is open, even if Auto-Lock is turned on in the iPad's Settings. Turn off to let the iPad sleep as usual.")
+                Text("Keeps the device awake and unlocked while DashPad is open, even if Auto-Lock is turned on in the device's Settings. Turn off to let the device sleep as usual.")
             }
 
             Section {
@@ -494,7 +494,7 @@ struct SettingsView: View {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Camera access is off")
                         Text(cameraAuthorizationStatus == .restricted
-                             ? "Camera use is switched off for this iPad by Screen Time or a device management profile, so Automatic mode can't detect anyone."
+                             ? "Camera use is switched off for this device by Screen Time or a device management profile, so Automatic mode can't detect anyone."
                              : "Automatic mode can't detect anyone until camera access is allowed for DashPad.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
@@ -699,7 +699,7 @@ struct SettingsView: View {
                               systemImage: "exclamationmark.triangle.fill")
                             .foregroundStyle(.orange)
                     }
-                    Text("Shows your photos when idle. Pick more than one and they play as a slideshow. Photos are copied into DashPad and stay on this iPad - DashPad never sees the rest of your library.")
+                    Text("Shows your photos when idle. Pick more than one and they play as a slideshow. Photos are copied into DashPad and stay on this device - DashPad never sees the rest of your library.")
                 }
             }
 

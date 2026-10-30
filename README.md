@@ -83,7 +83,7 @@ The commercial iOS kiosk apps are priced and designed for retail and museum depl
 - Xcode 16 or later
 - iOS / iPadOS 15.0 deployment target (developed and tested on iOS 26)
 - An Apple ID for code signing
-- A **physical iPad**. The simulator has no camera and cannot run the presence detection pipeline.
+- A **physical iPad or iPhone**. The simulator has no camera and cannot run the presence detection pipeline.
 
 ### Supported iPads
 
@@ -116,7 +116,7 @@ git clone https://github.com/rafapages/DashPad.git
 1. Open `DashPad.xcodeproj` in Xcode.
 2. In **Signing & Capabilities**, select your own development team. The project ships with `DEVELOPMENT_TEAM` left blank, so you must set this before the first build.
 3. Set a unique bundle identifier. The default `com.example.dashpad` is a placeholder and will collide; change it to something of your own (e.g. `com.yourname.dashpad`).
-4. Build and run on a physical iPad (`⌘R`). A camera and Guided Access need real hardware.
+4. Build and run on a physical iPad or iPhone (`⌘R`). A camera and Guided Access need real hardware.
 
 On first launch, an onboarding flow walks you through setup: setting your Home URL, granting camera permission, choosing an idle screen, and optionally setting a PIN.
 
