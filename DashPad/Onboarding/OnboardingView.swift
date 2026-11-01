@@ -449,27 +449,29 @@ struct OnboardingView: View {
             stepHeader(
                 icon: "display",
                 title: "What would you like to display?",
-                body: "Choose what DashPad should load on startup."
+                body: "DashPad shows a web dashboard full screen, such as Home Assistant running at home. Choose what it should load."
             )
 
+            // The demo comes first: without a server of your own, the other two lead to an address
+            // that can't load.
             VStack(spacing: 10) {
-                urlModeCard(
-                    mode: .homeAssistant,
-                    icon: "homekit",
-                    title: "Home Assistant",
-                    description: "Pre-fills the default local address. You can still edit it if your setup is different."
-                )
                 urlModeCard(
                     mode: .homeAssistantDemo,
                     icon: "play.rectangle",
-                    title: "Home Assistant demo",
-                    description: "I don't have Home Assistant, but I'd like to see how it would look. Loads the public demo dashboard."
+                    title: "Just looking? Try the demo",
+                    description: "No Home Assistant yet? Load the public Home Assistant demo to see how DashPad looks."
+                )
+                urlModeCard(
+                    mode: .homeAssistant,
+                    icon: "homekit",
+                    title: "I have Home Assistant at home",
+                    description: "Pre-fills the usual local address. Edit it if yours is different."
                 )
                 urlModeCard(
                     mode: .website,
                     icon: "globe",
                     title: "A website or custom URL",
-                    description: "Enter any URL accessible from your network."
+                    description: "Enter any URL this iPad can reach."
                 )
             }
 

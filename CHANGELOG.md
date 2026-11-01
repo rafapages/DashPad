@@ -35,7 +35,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Clock time format: choose System, 12-hour or 24-hour for every clock face that shows the hour
   in digits. System follows the iPad's Date & Time setting, as before.
 
-- Home Assistant demo: onboarding offers a "Home Assistant demo" option for anyone without a
+- Home Assistant demo: onboarding offers a "Just looking? Try the demo" option, listed first, for anyone without a
   server, loading the public demo at https://demo.home-assistant.io. Settings → Dashboard has a
   "Use Home Assistant Demo" button that does the same.
 - The "Can't reach dashboard" screen explains that the URL isn't working, says when DashPad will
