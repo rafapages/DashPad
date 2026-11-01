@@ -187,7 +187,11 @@ Note: the user-facing settings UI for custom CSS/JS is currently disabled. The i
 
 ### Reload on failure
 
-Every load of the home URL goes through `WebViewController.goHome(url:)`, which records the returned `WKNavigation` as `homeNavigation`. That lets the failure handler tell a failed dashboard load apart from a failed link.
+Every load of the home URL goes through `WebViewController.goHome(url:)`, which records the returned `WKNavigation` as `homeNavigation`. That lets the failure handler tell a failed dashboard load apart from a failed link. The request times out after `WebViewController.loadTimeout` (20 seconds) rather than WebKit's 60.
+
+`goHome` also sets `isLoadingHome` until the load finishes, fails or is abandoned. Until a page arrives an opaque `WKWebView` draws plain white whatever its `backgroundColor`, so `KioskBrowserView` covers it with a "Connecting to dashboard" placeholder showing the URL and an Open Settings button. A host that never answers would otherwise show an empty white screen until the timeout.
+
+On a first run nothing loads until onboarding completes: `makeUIView` skips the initial load while `hasCompletedOnboarding` is false, and `KioskBrowserView` calls `goHome` when it becomes true. Loading the default `homeassistant.local` address earlier would raise the Local Network prompt over the setup assistant.
 
 `webView(_:didFailProvisionalNavigation:)` and `webView(_:didFail:)` both go through `handleFailure(_:navigation:provisional:)`, which works through these rules in order:
 

@@ -44,6 +44,9 @@ extension LoadFailure {
 class WebViewController: ObservableObject {
     /// Delay before a failed dashboard load is retried.
     static let retryInterval: TimeInterval = 10
+    /// How long the dashboard request may go unanswered before it fails. WebKit's default is 60
+    /// seconds, which is a minute of nothing on screen when the host never replies.
+    static let loadTimeout: TimeInterval = 20
 
     // Not @Published: the web view reference is plumbing, never rendered.
     weak var webView: WKWebView?
@@ -53,12 +56,16 @@ class WebViewController: ObservableObject {
     @Published var canGoBack: Bool = false
     @Published var currentURL: URL? = nil
     @Published var loadFailure: LoadFailure? = nil
+    /// True from `goHome` until that load finishes or fails. Until a page arrives WebKit draws
+    /// plain white, which on its own looks like a broken app, so the view covers it.
+    @Published var isLoadingHome = false
 
     func reload() { webView?.reload() }
 
     func goHome(url: String) {
         guard let wv = webView, let u = URL(string: url) else { return }
-        homeNavigation = wv.load(URLRequest(url: u))
+        isLoadingHome = true
+        homeNavigation = wv.load(URLRequest(url: u, timeoutInterval: Self.loadTimeout))
     }
 
     func goBack() { webView?.goBack() }

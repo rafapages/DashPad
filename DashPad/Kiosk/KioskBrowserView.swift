@@ -13,27 +13,37 @@ struct KioskBrowserView: View {
     @EnvironmentObject var kioskManager: KioskManager
     @StateObject private var webController = WebViewController()
     @State private var urlReloadTask: Task<Void, Never>?
+    @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
 
     var body: some View {
         ZStack {
             WebViewRepresentable(settings: settings, webController: webController)
                 .ignoresSafeArea()
             if let failure = webController.loadFailure {
-                EmptyStatePlaceholder(
+                statusScreen(
                     title: "Can't reach dashboard",
                     systemImage: "wifi.exclamationmark",
-                    description: failureDescription(failure),
-                    actionTitle: "Open Settings",
-                    // Same path as the corner gesture, so a PIN still guards Settings on a wall-mounted iPad.
-                    action: kioskManager.handleSecretTap
+                    description: failureDescription(failure)
                 )
-                .background(Color.black.ignoresSafeArea())
-                .environment(\.colorScheme, .dark)
+            } else if webController.isLoadingHome {
+                statusScreen(
+                    title: "Connecting to dashboard",
+                    systemImage: "network",
+                    description: connectingDescription
+                )
+            } else if !hasCompletedOnboarding {
+                // Nothing is loaded until onboarding finishes; an empty WebView is white.
+                Color.black.ignoresSafeArea()
             }
             BrowserDrawer(webController: webController)
         }
         .ignoresSafeArea()
+        .onChangeCompat(of: hasCompletedOnboarding) { completed in
+            if completed { webController.goHome(url: settings.homeURL) }
+        }
         .onChangeCompat(of: settings.homeURL) { newURL in
+            // Onboarding sets the URL midway; the first load waits for it to finish instead.
+            guard hasCompletedOnboarding else { return }
             // Debounce: TextField fires on every keystroke; only reload after user stops typing.
             urlReloadTask?.cancel()
             urlReloadTask = Task {
@@ -47,6 +57,24 @@ struct KioskBrowserView: View {
             guard webController.loadFailure?.willRetry == false else { return }
             webController.goHome(url: settings.homeURL)
         }
+    }
+
+    private func statusScreen(title: String, systemImage: String, description: String) -> some View {
+        EmptyStatePlaceholder(
+            title: title,
+            systemImage: systemImage,
+            description: description,
+            actionTitle: "Open Settings",
+            // Same path as the corner gesture, so a PIN still guards Settings on a wall-mounted iPad.
+            action: kioskManager.handleSecretTap
+        )
+        .background(Color.black.ignoresSafeArea())
+        .environment(\.colorScheme, .dark)
+    }
+
+    private var connectingDescription: String {
+        let url = URL(string: settings.homeURL).map(LoadFailure.displayString) ?? settings.homeURL
+        return "\(url)\n\nIf your dashboard doesn't appear, check the URL in Settings → Dashboard."
     }
 
     private func failureDescription(_ failure: LoadFailure) -> String {
@@ -138,6 +166,9 @@ struct WebViewRepresentable: UIViewRepresentable {
     }
 
     private func loadHome(in webView: WKWebView) {
+        // On a first run KioskBrowserView starts the load when onboarding completes. Loading the
+        // default address now would raise the Local Network prompt over the setup assistant.
+        guard UserDefaults.standard.bool(forKey: "hasCompletedOnboarding") else { return }
         webController.goHome(url: settings.homeURL)
     }
 }
@@ -174,6 +205,7 @@ extension WebViewRepresentable {
                     reason: "This domain isn't in Settings → Allowed Domains.",
                     willRetry: false
                 )
+                webController.isLoadingHome = false
             }
             return allowed ? .allow : .cancel
         }
@@ -182,6 +214,7 @@ extension WebViewRepresentable {
             // A pending retry would otherwise yank the user back to the home URL after a successful load.
             cancelRetry()
             webController.loadFailure = nil
+            webController.isLoadingHome = false
             webController.canGoBack = webView.canGoBack
             webController.currentURL = webView.url
             webController.applyZoom()
@@ -202,8 +235,12 @@ extension WebViewRepresentable {
         }
 
         private func handleFailure(_ error: Error, navigation: WKNavigation?, provisional: Bool) {
-            // Superseded by a newer navigation or handed off: not a failure.
-            if LoadFailure.isAbandonedLoad(error) { return }
+            // Superseded by a newer navigation or handed off: not a failure. A newer `goHome` has
+            // already replaced `homeNavigation`, so only a home load that ended this way stops loading.
+            if LoadFailure.isAbandonedLoad(error) {
+                if navigation === webController.homeNavigation { webController.isLoadingHome = false }
+                return
+            }
             let nsError = error as NSError
 
             // A link that fails before committing leaves the current page loaded and usable;
@@ -216,6 +253,7 @@ extension WebViewRepresentable {
                 reason: nsError.localizedDescription,
                 willRetry: true
             )
+            webController.isLoadingHome = false
             scheduleRetry()
         }
 

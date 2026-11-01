@@ -50,6 +50,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   slideshows on it autoplay.
 
 ### Fixed
+- A dashboard URL that never answers (an unreachable host, or a local address while Local Network
+  access is denied or still being asked for) no longer leaves a blank white screen for a minute.
+  DashPad shows "Connecting to dashboard" with the URL and an Open Settings button while it loads,
+  and gives up after 20 seconds instead of 60, showing "Can't reach dashboard".
+- The dashboard no longer starts loading behind the setup assistant on first launch, which could
+  raise the Local Network prompt over it. It loads when setup finishes. The Local Network prompt
+  now explains why DashPad asks.
 - A Custom URL idle screen that fails to load now shows "Can't load idle screen" and retries every
   10 seconds, instead of a black screen that stayed black until the next idle period. It also
   reloads if iOS terminates its web content process, and no longer flashes white while loading.
