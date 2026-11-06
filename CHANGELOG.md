@@ -5,7 +5,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Changed
+- Dashboard zoom is now remembered across launches instead of resetting to 100%.
+
 ### Added
+- Settings → Dashboard → Settings Corner moves the triple-tap target to any corner of the screen,
+  so it no longer has to block a button on the dashboard. Stays in the bottom-right by default.
+- Settings → Dashboard → Web Controls can hide the pull tab on the right edge of the screen, and
+  has the tab's Refresh, Home and Zoom controls so they stay available without it.
 - Settings → Dashboard → Prevent Auto-Lock keeps the iPad awake and unlocked while DashPad is open,
   even when Auto-Lock is on in the iPad's Settings. On by default; turn it off to let the iPad
   sleep as usual.

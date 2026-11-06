@@ -182,13 +182,21 @@ private struct DrawerPanel: View {
                 onAction(true)
             }
             divider
-            DrawerButton(symbol: "plus.magnifyingglass", label: "Zoom In", disabled: webController.zoomLevel >= 2.0) {
-                webController.setZoom(webController.zoomLevel + 0.1)
+            DrawerButton(
+                symbol: "plus.magnifyingglass",
+                label: "Zoom In",
+                disabled: settings.dashboardZoom >= AppSettings.dashboardZoomRange.upperBound
+            ) {
+                settings.dashboardZoom += AppSettings.dashboardZoomStep
                 onAction(false)
             }
             divider
-            DrawerButton(symbol: "minus.magnifyingglass", label: "Zoom Out", disabled: webController.zoomLevel <= 0.5) {
-                webController.setZoom(webController.zoomLevel - 0.1)
+            DrawerButton(
+                symbol: "minus.magnifyingglass",
+                label: "Zoom Out",
+                disabled: settings.dashboardZoom <= AppSettings.dashboardZoomRange.lowerBound
+            ) {
+                settings.dashboardZoom -= AppSettings.dashboardZoomStep
                 onAction(false)
             }
             divider

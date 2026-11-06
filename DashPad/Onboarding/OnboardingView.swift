@@ -670,7 +670,7 @@ struct OnboardingView: View {
             VStack(spacing: 12) {
                 gestureRow(
                     icon: "hand.tap",
-                    title: "Triple-tap the bottom-right corner",
+                    title: "Triple-tap the \(settings.settingsCorner.inlineName) corner",
                     description: "Three quick taps opens the PIN prompt (if set), then takes you straight to Settings."
                 )
                 gestureRow(

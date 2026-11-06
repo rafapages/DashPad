@@ -32,20 +32,15 @@ struct ContentView: View {
                     }
             }
 
-            // Invisible 88×88 pt corner tap target (bottom-right) for secret gesture
-            VStack {
-                Spacer()
-                HStack {
-                    Spacer()
-                    Color.clear
-                        .frame(width: 88, height: 88)
-                        .contentShape(Rectangle())
-                        .onTapGesture(count: 3) {
-                            kioskManager.handleSecretTap()
-                        }
+            // Invisible 88×88 pt corner tap target for secret gesture
+            Color.clear
+                .frame(width: 88, height: 88)
+                .contentShape(Rectangle())
+                .onTapGesture(count: 3) {
+                    kioskManager.handleSecretTap()
                 }
-            }
-            .ignoresSafeArea()
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: settings.settingsCorner.alignment)
+                .ignoresSafeArea()
 
             // PIN entry overlay
             if kioskManager.showingPINEntry {
@@ -95,8 +90,20 @@ struct ContentView: View {
     }
 }
 
+private extension SettingsCorner {
+    var alignment: Alignment {
+        switch self {
+        case .topLeft: .topLeading
+        case .topRight: .topTrailing
+        case .bottomLeft: .bottomLeading
+        case .bottomRight: .bottomTrailing
+        }
+    }
+}
+
 #Preview {
     ContentView()
         .environmentObject(AppSettings())
         .environmentObject(KioskManager())
+        .environmentObject(WebViewController())
 }

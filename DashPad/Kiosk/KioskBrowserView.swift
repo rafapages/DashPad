@@ -11,7 +11,7 @@ import WebKit
 struct KioskBrowserView: View {
     @EnvironmentObject var settings: AppSettings
     @EnvironmentObject var kioskManager: KioskManager
-    @StateObject private var webController = WebViewController()
+    @EnvironmentObject var webController: WebViewController
     @State private var urlReloadTask: Task<Void, Never>?
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
 
@@ -35,7 +35,9 @@ struct KioskBrowserView: View {
                 // Nothing is loaded until onboarding finishes; an empty WebView is white.
                 Color.black.ignoresSafeArea()
             }
-            BrowserDrawer(webController: webController)
+            if settings.showBrowserDrawer {
+                BrowserDrawer(webController: webController)
+            }
         }
         .ignoresSafeArea()
         .onChangeCompat(of: hasCompletedOnboarding) { completed in
@@ -52,6 +54,7 @@ struct KioskBrowserView: View {
                 webController.goHome(url: newURL)
             }
         }
+        .onChangeCompat(of: settings.dashboardZoom) { webController.applyZoom(percent: $0) }
         .onChangeCompat(of: settings.allowedDomains) { _ in
             // A dashboard blocked by the allowlist is never retried; try again once the list changes.
             guard webController.loadFailure?.willRetry == false else { return }
@@ -217,7 +220,7 @@ extension WebViewRepresentable {
             webController.isLoadingHome = false
             webController.canGoBack = webView.canGoBack
             webController.currentURL = webView.url
-            webController.applyZoom()
+            webController.applyZoom(percent: settings.dashboardZoom)
         }
 
         func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
@@ -279,4 +282,5 @@ extension WebViewRepresentable {
     KioskBrowserView()
         .environmentObject(AppSettings())
         .environmentObject(KioskManager())
+        .environmentObject(WebViewController())
 }

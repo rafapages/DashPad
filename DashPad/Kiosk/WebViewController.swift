@@ -52,7 +52,6 @@ class WebViewController: ObservableObject {
     weak var webView: WKWebView?
     // Not @Published: identifies the in-flight home load so failures can tell it apart from links.
     var homeNavigation: WKNavigation?
-    @Published var zoomLevel: Double = 1.0
     @Published var canGoBack: Bool = false
     @Published var currentURL: URL? = nil
     @Published var loadFailure: LoadFailure? = nil
@@ -70,17 +69,13 @@ class WebViewController: ObservableObject {
 
     func goBack() { webView?.goBack() }
 
-    func setZoom(_ level: Double) {
-        zoomLevel = min(max(level, 0.5), 2.0)
-        applyZoom()
-    }
-
-    func applyZoom() {
+    /// `percent` comes from `AppSettings.dashboardZoom`, the only place zoom is kept.
+    func applyZoom(percent: Int) {
         guard let wv = webView, wv.bounds.width > 0 else { return }
         // Change the layout viewport width rather than scaling rendered pixels.
         // WebKit auto-scales the wider/narrower layout to fit the physical frame,
         // so fixed/sticky elements stay anchored and no empty space appears.
-        let viewportWidth = Int(wv.bounds.width / zoomLevel)
+        let viewportWidth = Int(wv.bounds.width * 100 / CGFloat(percent))
         wv.evaluateJavaScript("""
             (function(){
                 var m = document.querySelector('meta[name="viewport"]');

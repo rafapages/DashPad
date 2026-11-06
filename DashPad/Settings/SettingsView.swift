@@ -97,6 +97,7 @@ private enum AppStoreReview {
 struct SettingsView: View {
     @EnvironmentObject var settings: AppSettings
     @EnvironmentObject var kioskManager: KioskManager
+    @EnvironmentObject var webController: WebViewController
     @Environment(\.openURL) private var openURL
     @State private var selectedCategory: SettingsCategory? = .dashboard
     @State private var cameraAuthorizationStatus = AVCaptureDevice.authorizationStatus(for: .video)
@@ -317,6 +318,39 @@ struct SettingsView: View {
             }
 
             Section {
+                Toggle("Show Pull Tab", isOn: s.showBrowserDrawer)
+                Picker("Settings Corner", selection: s.settingsCorner) {
+                    ForEach(SettingsCorner.allCases, id: \.self) {
+                        Text($0.displayName).tag($0)
+                    }
+                }
+                .pickerStyle(.menu)
+                Stepper(
+                    "Zoom: \(settings.dashboardZoom)%",
+                    value: s.dashboardZoom,
+                    in: AppSettings.dashboardZoomRange,
+                    step: AppSettings.dashboardZoomStep
+                )
+                // Both close Settings: their result is on the dashboard, which this sheet covers.
+                Button {
+                    webController.reload()
+                    kioskManager.dismissSettings()
+                } label: {
+                    Label("Refresh", systemImage: "arrow.clockwise")
+                }
+                Button {
+                    webController.goHome(url: settings.homeURL)
+                    kioskManager.dismissSettings()
+                } label: {
+                    Label("Go Home", systemImage: "house")
+                }
+            } header: {
+                Text("Web Controls")
+            } footer: {
+                Text("The pull tab on the right edge of the screen has Refresh, Home, Zoom and Settings. Without it, use these controls instead.\n\nTriple-tap the \(settings.settingsCorner.inlineName) corner to open Settings at any time. That corner blocks taps on anything underneath, so pick one without buttons on your dashboard.")
+            }
+
+            Section {
                 ForEach(settings.favouriteURLs, id: \.self) { url in
                     HStack {
                         Text(url)
@@ -399,7 +433,7 @@ struct SettingsView: View {
                     }
                 }
             } footer: {
-                Text("When enabled, triple-tapping the bottom-right corner will ask for a PIN before opening Settings. Use Face ID or your device passcode if you forget it.")
+                Text("When enabled, triple-tapping the \(settings.settingsCorner.inlineName) corner will ask for a PIN before opening Settings. Use Face ID or your device passcode if you forget it.")
             }
             Section {
                 Button("Enter Kiosk Mode") {
@@ -1107,5 +1141,6 @@ private struct ClockPreviewCard: View {
         SettingsView()
             .environmentObject(AppSettings())
             .environmentObject(km)
+            .environmentObject(WebViewController())
     }
 }

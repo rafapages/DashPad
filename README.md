@@ -64,7 +64,7 @@ The commercial iOS kiosk apps are priced and designed for retail and museum depl
 
 **Optional PIN lock.** A PIN can be set to gate access to settings. It is off by default. Face ID or your device passcode can unlock it if you forget the PIN.
 
-**Settings panel.** Accessed via a secret gesture (triple-tap the bottom-right corner). No visible settings button means no clutter on the dashboard.
+**Settings panel.** Accessed via a secret gesture (triple-tap the bottom-right corner, or whichever corner you choose in Settings → Dashboard). No visible settings button means no clutter on the dashboard.
 
 ---
 
@@ -133,7 +133,7 @@ On first launch, an onboarding flow walks you through setup: setting your Home U
 
 ## Configuration
 
-Open the settings panel by **triple-tapping the bottom-right corner**. If an exit PIN is set, you will be prompted for it first.
+Open the settings panel by **triple-tapping the bottom-right corner**. If an exit PIN is set, you will be prompted for it first. The tap target blocks anything underneath it, so if it covers a button on your dashboard, move it to another corner with **Settings Corner** in Settings → Dashboard.
 
 ### Dashboard
 
@@ -144,6 +144,9 @@ Open the settings panel by **triple-tapping the bottom-right corner**. If an exi
 | Allowed domains | *(empty, allow all)*              | Comma-separated list of domains the WebView may navigate to. Useful if your dashboard links to external pages you want to block. |
 | Hide status bar | On                                | Hides the clock, date, battery and Wi-Fi indicators over the dashboard. The idle screen always hides them.                       |
 | Prevent auto-lock | On                              | Keeps the iPad awake and unlocked while DashPad is open, overriding the system Auto-Lock setting.                                |
+| Settings corner | Bottom right                      | The corner you triple-tap to open Settings. It blocks taps on anything beneath it, so choose one without dashboard buttons.      |
+| Show pull tab   | On                                | Shows the tab on the right edge with Refresh, Home, Zoom and Settings. Refresh, Home and Zoom are also in this section of Settings. |
+| Zoom            | 100%                              | Dashboard zoom, from 50% to 200%. Remembered across launches.                                                                    |
 | Favourites      | *(empty)*                         | Saved URL list. Swipe right on any entry to set it as the Home URL; swipe left to delete.                                        |
 
 
@@ -224,7 +227,7 @@ DashPad is organised into a small number of focused groups. Here is where to loo
 
 ```
 DashPad/
-├── DashPadApp.swift      Entry point; owns AppSettings and KioskManager
+├── DashPadApp.swift      Entry point; owns AppSettings, KioskManager and WebViewController
 ├── AppSettings.swift     Single source of truth for all user configuration
 ├── KioskManager.swift    Central coordinator; presence state machine; display transitions
 ├── ContentView.swift     Root view; switches between KioskBrowserView and IdleView

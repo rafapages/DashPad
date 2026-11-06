@@ -176,7 +176,7 @@ class KioskManager: ObservableObject {
 
     // MARK: - Secret gesture → PIN prompt
 
-    /// Called by the invisible triple-tap target in the bottom-right corner.
+    /// Called by the invisible triple-tap target in the corner chosen in `settingsCorner`.
     /// Opens settings directly if no PIN is set; otherwise shows the PIN entry overlay.
     func handleSecretTap() {
         guard !showingPINEntry, !showingSettings else { return }

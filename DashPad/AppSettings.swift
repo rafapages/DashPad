@@ -38,11 +38,18 @@ class AppSettings: ObservableObject {
     @Published var manualWakeTimeout: Double { didSet { save(manualWakeTimeout, key: .manualWakeTimeout) } }
     @Published var hideStatusBar: Bool { didSet { save(hideStatusBar, key: .hideStatusBar) } }
     @Published var preventAutoLock: Bool { didSet { save(preventAutoLock, key: .preventAutoLock) } }
+    @Published var settingsCorner: SettingsCorner { didSet { save(settingsCorner.rawValue, key: .settingsCorner) } }
+    @Published var showBrowserDrawer: Bool { didSet { save(showBrowserDrawer, key: .showBrowserDrawer) } }
+    /// A whole percentage: stepping a `Double` by 0.1 drifts, so it would never land back on 100.
+    @Published var dashboardZoom: Int { didSet { save(dashboardZoom, key: .dashboardZoom) } }
 
     // PIN is stored in Keychain
     @Published var exitPIN: String {
         didSet { KeychainHelper.write(key: Self.pinKeychainKey, value: exitPIN) }
     }
+
+    static let dashboardZoomRange = 50...200
+    static let dashboardZoomStep = 10
 
     /// Digits in a newly created PIN. `PINSetupView` is the only writer of a non-empty `exitPIN`,
     /// so this is the length of every PIN this app creates - both the setup keypad and the entry
@@ -89,6 +96,9 @@ class AppSettings: ObservableObject {
         manualWakeTimeout = ud.optionalDouble(forKey: Key.manualWakeTimeout.rawValue) ?? 120.0
         hideStatusBar = ud.object(forKey: Key.hideStatusBar.rawValue) as? Bool ?? true
         preventAutoLock = ud.object(forKey: Key.preventAutoLock.rawValue) as? Bool ?? true
+        settingsCorner = SettingsCorner(rawValue: ud.string(forKey: Key.settingsCorner.rawValue) ?? "") ?? .bottomRight
+        showBrowserDrawer = ud.object(forKey: Key.showBrowserDrawer.rawValue) as? Bool ?? true
+        dashboardZoom = ud.object(forKey: Key.dashboardZoom.rawValue) as? Int ?? 100
 
         // Keychain items outlive app deletion, so a reinstall would otherwise come back already
         // locked by a PIN from the previous install - one the user may not remember, and which
@@ -120,7 +130,7 @@ class AppSettings: ObservableObject {
         case idleBrightness, activeBrightness, cameraSampleRate, nightSampleRate
         case presenceRecheckInterval, darkLuminanceThreshold
         case allowedDomains, customCSS, customJS, favouriteURLs, detectionMode
-        case hideStatusBar, preventAutoLock
+        case hideStatusBar, preventAutoLock, settingsCorner, showBrowserDrawer, dashboardZoom
     }
 
     private func save(_ value: some Any, key: Key) {
@@ -209,6 +219,26 @@ extension AppSettings {
               let host = url.host, !host.isEmpty
         else { return nil }
         return url
+    }
+}
+
+/// The screen corner holding the invisible triple-tap target that opens Settings. It swallows
+/// taps on whatever the dashboard shows beneath it, so it can be moved off a dashboard's buttons.
+enum SettingsCorner: String, CaseIterable {
+    case topLeft, topRight, bottomLeft, bottomRight
+
+    var displayName: String {
+        switch self {
+        case .topLeft: "Top Left"
+        case .topRight: "Top Right"
+        case .bottomLeft: "Bottom Left"
+        case .bottomRight: "Bottom Right"
+        }
+    }
+
+    /// For use in a sentence: "triple-tap the bottom-right corner".
+    var inlineName: String {
+        displayName.lowercased().replacingOccurrences(of: " ", with: "-")
     }
 }
 

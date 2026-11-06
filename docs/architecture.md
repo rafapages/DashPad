@@ -20,7 +20,7 @@ This document describes how DashPad is structured and how its major components i
 
 ```
 DashPad/
-├── DashPadApp.swift          @main entry point; injects AppSettings and KioskManager
+├── DashPadApp.swift          @main entry point; injects AppSettings, KioskManager and WebViewController
 │
 ├── AppSettings.swift         All user configuration; UserDefaults persistence; Keychain for PIN
 ├── KioskManager.swift        Central coordinator; presence state machine; display transitions
@@ -28,7 +28,7 @@ DashPad/
 │
 ├── Kiosk/
 │   ├── KioskBrowserView.swift   WKWebView wrapper; navigation policy; reload; load-failure state
-│   └── WebViewController.swift  Observable handle on the WebView (zoom, back, load failure)
+│   └── WebViewController.swift  Observable handle on the WebView (reload, home, zoom, load failure)
 │
 ├── Presence/
 │   ├── PresenceDetector.swift   AVCaptureSession; luminance check; Vision request; CaptureResult
@@ -64,7 +64,7 @@ DashPad/
 
 ## Environment objects
 
-Two objects are injected at the root in `DashPadApp.swift` and available throughout the view hierarchy via `@EnvironmentObject`:
+Three objects are injected at the root in `DashPadApp.swift` and available throughout the view hierarchy via `@EnvironmentObject`:
 
 **`AppSettings`** - an `ObservableObject`. Every setting is an `@Published` stored property with a `didSet` observer that writes to `UserDefaults`. The exit PIN is the only exception: it is written to and read from Keychain via `KeychainHelper`. Views bind to `AppSettings` properties through the projected `$settings` wrapper.
 
@@ -72,7 +72,9 @@ Two objects are injected at the root in `DashPadApp.swift` and available through
 
 Not every property on `KioskManager` is `@Published`. `ObservableObject` invalidates every observing view on any published change, so state that churns but is never rendered is deliberately left unpublished: `lastLuminance` is rewritten on every camera sample, and `manualWakeUntil` is internal to the schedule state machine. The debug overlay reads its own copy of the luminance from `PresenceDebugViewModel` rather than from `KioskManager`.
 
-Neither object is a singleton in the Swift sense - they are instantiated once in `DashPadApp` as `@StateObject` properties and live for the lifetime of the app.
+**`WebViewController`** - an `ObservableObject` holding a handle on the dashboard's `WKWebView`. It sits at the root rather than inside `KioskBrowserView` because both the pull-tab drawer and `SettingsView` drive the same web view. Zoom is kept in `AppSettings.dashboardZoom`; `KioskBrowserView` applies changes to the web view, and the coordinator re-applies it after each page load.
+
+None of these objects is a singleton in the Swift sense - they are instantiated once in `DashPadApp` as `@StateObject` properties and live for the lifetime of the app.
 
 ---
 
@@ -96,7 +98,7 @@ DashPadApp
 ContentView.sheet → SettingsView  (when showingSettings == true)
 ```
 
-`ContentView` is deliberately thin. It contains no logic beyond reading `KioskManager.displayState` and rendering the appropriate branch. The corner tap target is an invisible `Color.clear` rectangle sitting in the bottom-right of the safe area - `onTapGesture(count: 3)` calls `KioskManager.handleSecretTap()`.
+`ContentView` is deliberately thin. It contains no logic beyond reading `KioskManager.displayState` and rendering the appropriate branch. The corner tap target is an invisible `Color.clear` rectangle sitting in the corner set by `AppSettings.settingsCorner` (bottom-right by default), ignoring the safe area - `onTapGesture(count: 3)` calls `KioskManager.handleSecretTap()`.
 
 Both top-level sheets - `SettingsView` and `OnboardingView` - declare their size explicitly with
 `centredSheetSizing()` (`CentredSheetSizing`, an 800x640 `PresentationSizing`, on iOS 18+) rather
