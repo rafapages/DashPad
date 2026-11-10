@@ -12,6 +12,7 @@ struct DashPadApp: App {
     @StateObject private var settings = AppSettings()
     @StateObject private var kioskManager = KioskManager()
     @StateObject private var webController = WebViewController()
+    @StateObject private var homeAssistantLink = HomeAssistantLink()
 
     init() {
         WhatsNew.configure()
@@ -23,6 +24,7 @@ struct DashPadApp: App {
                 .environmentObject(settings)
                 .environmentObject(kioskManager)
                 .environmentObject(webController)
+                .environmentObject(homeAssistantLink)
         }
     }
 }

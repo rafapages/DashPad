@@ -205,9 +205,7 @@ extension WebViewRepresentable {
             guard let url = navigationAction.request.url else { return .cancel }
             guard !settings.allowedDomainList.isEmpty else { return .allow }
             let host = url.host ?? ""
-            let allowed = settings.allowedDomainList.contains { domain in
-                host == domain || host.hasSuffix(".\(domain)")
-            }
+            let allowed = settings.allowsNavigation(to: url)
             if !allowed, navigationAction.targetFrame?.isMainFrame == true,
                host == URL(string: settings.homeURL)?.host {
                 // Blocking the dashboard itself would leave a blank screen, and retrying can't fix it.

@@ -9,6 +9,8 @@ import SwiftUI
 struct ContentView: View {
     @EnvironmentObject var kioskManager: KioskManager
     @EnvironmentObject var settings: AppSettings
+    @EnvironmentObject var webController: WebViewController
+    @EnvironmentObject var homeAssistantLink: HomeAssistantLink
 
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
     @State private var showingOnboarding = false
@@ -29,6 +31,8 @@ struct ContentView: View {
                         // mode uses manualWake(). Always-active mode never shows the idle screen.
                         kioskManager.handleScreenTap()
                         kioskManager.manualWake()
+                        // And when Home Assistant asked for this idle screen, in any mode.
+                        kioskManager.wakeFromRequestedIdle()
                     }
             }
 
@@ -58,6 +62,7 @@ struct ContentView: View {
                 // Deferred from onAppear: the presence mode the user just chose is now stored,
                 // and there is no longer a sheet for the camera dialog to appear behind.
                 kioskManager.start(settings: settings)
+                startHomeAssistantLink()
             })
             .environmentObject(settings)
             .environmentObject(kioskManager)
@@ -69,6 +74,7 @@ struct ContentView: View {
             applyIdleTimer(settings.preventAutoLock)
             if hasCompletedOnboarding {
                 kioskManager.start(settings: settings)
+                startHomeAssistantLink()
             } else {
                 showingOnboarding = true
             }
@@ -79,7 +85,14 @@ struct ContentView: View {
             applyIdleTimer(settings.preventAutoLock)
             kioskManager.evaluateSchedule()
             kioskManager.evaluateNight()
+            homeAssistantLink.appDidBecomeActive()
         }
+    }
+
+    /// After onboarding, like the presence pipeline: listening on the network can raise the
+    /// Local Network prompt, which must not appear behind the setup sheet.
+    private func startHomeAssistantLink() {
+        homeAssistantLink.start(settings: settings, kioskManager: kioskManager, webController: webController)
     }
 
     private func applyIdleTimer(_ preventAutoLock: Bool) {
@@ -133,4 +146,5 @@ private extension SettingsCorner {
         .environmentObject(AppSettings())
         .environmentObject(KioskManager())
         .environmentObject(WebViewController())
+        .environmentObject(HomeAssistantLink())
 }

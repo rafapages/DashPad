@@ -69,6 +69,12 @@ class WebViewController: ObservableObject {
 
     func goBack() { webView?.goBack() }
 
+    /// Loads a page other than the dashboard, for the Home Assistant link's `show_url` action.
+    /// It goes through the same navigation policy as a tapped link, allowlist included.
+    func show(_ url: URL) {
+        webView?.load(URLRequest(url: url, timeoutInterval: Self.loadTimeout))
+    }
+
     /// `percent` comes from `AppSettings.dashboardZoom`, the only place zoom is kept.
     func applyZoom(percent: Int) {
         guard let wv = webView, wv.bounds.width > 0 else { return }

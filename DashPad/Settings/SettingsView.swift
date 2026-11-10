@@ -17,6 +17,7 @@ private enum SettingsCategory: String, CaseIterable, Identifiable {
     case kioskLock  = "Kiosk Lock"
     case presence   = "Presence"
     case brightness = "Brightness"
+    case homeAssistant = "Home Assistant"
 
     var id: Self { self }
 
@@ -27,6 +28,7 @@ private enum SettingsCategory: String, CaseIterable, Identifiable {
         case .presence:   "person.fill.viewfinder"
         case .idleScreen: "moon.fill"
         case .brightness: "sun.max.fill"
+        case .homeAssistant: "antenna.radiowaves.left.and.right"
         }
     }
 
@@ -37,6 +39,7 @@ private enum SettingsCategory: String, CaseIterable, Identifiable {
         case .presence:   .purple
         case .idleScreen: .indigo
         case .brightness: .yellow
+        case .homeAssistant: .teal
         }
     }
 }
@@ -98,6 +101,7 @@ struct SettingsView: View {
     @EnvironmentObject var settings: AppSettings
     @EnvironmentObject var kioskManager: KioskManager
     @EnvironmentObject var webController: WebViewController
+    @EnvironmentObject var homeAssistantLink: HomeAssistantLink
     @Environment(\.openURL) private var openURL
     @State private var selectedCategory: SettingsCategory? = .dashboard
     @State private var cameraAuthorizationStatus = AVCaptureDevice.authorizationStatus(for: .video)
@@ -109,6 +113,7 @@ struct SettingsView: View {
     @State private var addWindowRequest: AddWindowRequest? = nil
     @State private var showingSetupAssistant = false
     @State private var confirmingRemoveAllPhotos = false
+    @State private var confirmingNewHomeAssistantKey = false
     @AppStorage(WhatsNew.idleScreensTriedKey) private var idleScreensTried = false
 
     var body: some View {
@@ -268,6 +273,7 @@ struct SettingsView: View {
         case .kioskLock:  kioskLockDetail(s)
         case .presence:   presenceDetail(s)
         case .brightness: brightnessDetail(s)
+        case .homeAssistant: homeAssistantDetail(s)
         }
     }
 
@@ -971,6 +977,84 @@ struct SettingsView: View {
         .navigationBarTitleDisplayMode(.inline)
     }
 
+    // MARK: - Detail: Home Assistant
+
+    @ViewBuilder
+    private func homeAssistantDetail(_ s: EnvironmentObject<AppSettings>.Wrapper) -> some View {
+        Form {
+            Section {
+                Toggle("Home Assistant Link", isOn: s.homeAssistantLinkEnabled)
+            } footer: {
+                Text("Lets Home Assistant on your network see this iPad as a device: whether someone is in front of it, what the screen is showing, and its battery. Automations can wake the dashboard, send it idle, show the night screen or open a page. Off by default. While it is off, DashPad accepts no network connections.")
+            }
+
+            if settings.homeAssistantLinkEnabled {
+                Section {
+                    LabeledRow("Device Name") {
+                        TextField("DashPad", text: s.homeAssistantDeviceName)
+                            .multilineTextAlignment(.trailing)
+                    }
+                    LabeledRow("Status") {
+                        Text(homeAssistantStatusText)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.trailing)
+                    }
+                    if let address = HomeAssistantLink.wifiAddress {
+                        LabeledRow("Address") {
+                            Text("\(address), port \(String(ESPHomeServer.port))")
+                                .monospacedDigit()
+                                .foregroundStyle(.secondary)
+                                .textSelection(.enabled)
+                        }
+                    }
+                } footer: {
+                    Text("In Home Assistant, open Settings → Devices & services. This iPad should appear under Discovered as an ESPHome device. If it doesn't, choose Add integration → ESPHome and enter the address above.")
+                }
+
+                Section {
+                    Text(settings.homeAssistantKey)
+                        .font(.footnote.monospaced())
+                        .textSelection(.enabled)
+                    Button("Copy Key") {
+                        UIPasteboard.general.string = settings.homeAssistantKey
+                    }
+                    Button("New Key", role: .destructive) {
+                        confirmingNewHomeAssistantKey = true
+                    }
+                } header: {
+                    Text("Encryption Key")
+                } footer: {
+                    Text("Home Assistant asks for this key when you add the iPad. Anyone on your network who has it can control this screen, so treat it like a password.")
+                }
+            }
+        }
+        .animation(.default, value: settings.homeAssistantLinkEnabled)
+        .confirmationDialog("Replace the encryption key?",
+                            isPresented: $confirmingNewHomeAssistantKey,
+                            titleVisibility: .visible) {
+            Button("New Key", role: .destructive) {
+                settings.regenerateHomeAssistantKey()
+            }
+        } message: {
+            Text("Home Assistant will stop connecting until you enter the new key there.")
+        }
+        .hiddenScrollContentBackground()
+        .clearNavigationBackground()
+        .navigationTitle("Home Assistant")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private var homeAssistantStatusText: String {
+        switch homeAssistantLink.status {
+        case .stopped, .starting:
+            "Starting…"
+        case .listening(let clients):
+            clients > 0 ? "Connected to Home Assistant" : "Waiting for Home Assistant"
+        case .failed(let reason):
+            "Can't listen: \(reason)"
+        }
+    }
+
     // MARK: - Detail: Injection
 
     @ViewBuilder
@@ -1235,5 +1319,6 @@ private struct ClockPreviewCard: View {
             .environmentObject(AppSettings())
             .environmentObject(km)
             .environmentObject(WebViewController())
+            .environmentObject(HomeAssistantLink())
     }
 }

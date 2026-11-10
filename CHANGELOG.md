@@ -9,6 +9,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Dashboard zoom is now remembered across launches instead of resetting to 100%.
 
 ### Added
+- Home Assistant link: Settings → Home Assistant makes the iPad appear in Home Assistant as a
+  device, through the ESPHome integration Home Assistant already includes, so there is nothing to
+  install there. It exposes a Presence sensor (Camera mode), what the display is showing, room
+  brightness, battery and charging, a Mode select (Auto, Dashboard, Idle, Night) and a Reload
+  Dashboard button, plus a `show_url` action that wakes the dashboard on a page for a set time.
+  Local network only, encrypted with a key shown in Settings, and off by default. A tap always
+  wakes the dashboard, and the mode returns to Auto if Home Assistant stays disconnected for five
+  minutes. See docs/home-assistant-link.md.
 - Night screen: Settings → Idle Screen → Night Screen shows a different idle screen during hours
   you choose, such as a dark clock or a blank screen overnight. Add as many time ranges as you
   like, the same every day or per weekday, and ranges can span midnight. It has its own clock

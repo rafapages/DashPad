@@ -22,6 +22,15 @@ enum PresenceState {
     case idle, sampling, active, rechecking, countingDown
 }
 
+/// What Home Assistant has asked the display to do. `auto` leaves the decision to the
+/// presence mode and the night hours, exactly as without the link.
+enum RequestedMode: String, CaseIterable {
+    case auto = "Auto"
+    case dashboard = "Dashboard"
+    case idle = "Idle"
+    case night = "Night"
+}
+
 class KioskManager: ObservableObject {
     @Published var displayState: DisplayState = .active
     @Published var presenceState: PresenceState = .idle
@@ -50,6 +59,8 @@ class KioskManager: ObservableObject {
     /// showing. It only picks which idle screen and brightness are used once the display goes
     /// idle - it never sends the display idle by itself.
     @Published private(set) var isNightActive = false
+    /// Set by the Home Assistant link. Not persisted: every launch starts in `auto`.
+    @Published private(set) var requestedMode: RequestedMode = .auto
 
     // Deliberately not @Published. ObservableObject invalidates every observing view on any
     // published change, and `lastLuminance` is rewritten on every camera sample - publishing it
@@ -72,6 +83,15 @@ class KioskManager: ObservableObject {
     /// Night hours with "wake when someone walks up" off: the camera stays off while idle, so
     /// only a tap brings the dashboard back.
     private var presenceWakeSuppressed = false
+    /// What the presence mode wants the display to show. `displayState` follows it in `auto`
+    /// and ignores it while Home Assistant or a dashboard hold says otherwise.
+    private var localDisplayState: DisplayState = .active
+    /// Non-nil while the dashboard is held on screen regardless of mode: after a tap on a
+    /// screen Home Assistant has sent idle, or while Home Assistant shows a URL.
+    private var dashboardHoldUntil: Date?
+    private var holdTimer: Timer?
+    private var holdEndHandler: (() -> Void)?
+    private var hasLuminanceSample = false
     private var lastFrameWasDark = false
     private var started = false
 
@@ -123,7 +143,8 @@ class KioskManager: ObservableObject {
     /// setting changes, when the app UI is dismissed and on `applicationDidBecomeActive`.
     func evaluateNight() {
         guard let settings else { return }
-        let night = settings.nightScreenEnabled && settings.nightSchedule.isActive(at: Date())
+        let night = requestedMode == .night
+            || (settings.nightScreenEnabled && settings.nightSchedule.isActive(at: Date()))
         let suppressed = night && !settings.nightWakeOnPresence
         let nightChanged = night != isNightActive
         let suppressionChanged = suppressed != presenceWakeSuppressed
@@ -174,6 +195,74 @@ class KioskManager: ObservableObject {
         manualWakeUntil = nil
     }
 
+    // MARK: - Home Assistant control
+
+    /// Whether someone is in front of the iPad, or nil when DashPad can't tell: outside Camera
+    /// mode, and while the camera is off for the night screen.
+    var presence: Bool? {
+        guard presenceDetector != nil else { return nil }
+        switch presenceState {
+        case .active, .rechecking, .countingDown: return true
+        case .sampling: return false
+        case .idle: return presenceWakeSuppressed ? nil : false
+        }
+    }
+
+    /// The last camera frame's average luminance (0-255), or nil before the first sample and
+    /// outside Camera mode.
+    var roomLuminance: Double? {
+        presenceDetector != nil && hasLuminanceSample ? lastLuminance : nil
+    }
+
+    func setRequestedMode(_ mode: RequestedMode) {
+        requestedMode = mode
+        endDashboardHold()
+        evaluateNight()
+        resolveDisplay()
+    }
+
+    /// Shows the dashboard whatever the mode says, for `duration` seconds or, with nil, until
+    /// `endDashboardHold()` or the next `setRequestedMode(_:)`. `onEnd` runs when the hold ends
+    /// for any reason.
+    func holdDashboard(for duration: TimeInterval?, extendWhilePresent: Bool = false, onEnd: (() -> Void)? = nil) {
+        endDashboardHold()
+        dashboardHoldUntil = duration.map { Date().addingTimeInterval($0) } ?? .distantFuture
+        holdEndHandler = onEnd
+        if let duration {
+            holdTimer = Timer.scheduledTimer(withTimeInterval: duration, repeats: false) { [weak self] _ in
+                guard let self else { return }
+                if extendWhilePresent, self.presence == true {
+                    // Someone is still using the dashboard they tapped awake.
+                    let handler = self.holdEndHandler
+                    self.holdEndHandler = nil
+                    self.holdDashboard(for: duration, extendWhilePresent: true, onEnd: handler)
+                } else {
+                    self.endDashboardHold()
+                }
+            }
+        }
+        resolveDisplay()
+    }
+
+    func endDashboardHold() {
+        guard dashboardHoldUntil != nil else { return }
+        holdTimer?.invalidate()
+        holdTimer = nil
+        dashboardHoldUntil = nil
+        let handler = holdEndHandler
+        holdEndHandler = nil
+        handler?()
+        resolveDisplay()
+    }
+
+    /// A tap on an idle screen that Home Assistant asked for. A wall panel must always answer
+    /// a touch, so the dashboard comes up for `manualWakeTimeout` and then the mode applies again.
+    func wakeFromRequestedIdle() {
+        guard let settings, displayState == .idle,
+              requestedMode == .idle || requestedMode == .night else { return }
+        holdDashboard(for: settings.manualWakeTimeout, extendWhilePresent: true)
+    }
+
     // MARK: - Presence mode switch
 
     /// Tears down the current presence mode and starts the new one. Safe to call at any time:
@@ -186,6 +275,7 @@ class KioskManager: ObservableObject {
         cancelAllTimers()
         presenceDetector = nil
         presenceState = .idle
+        hasLuminanceSample = false
 
         switch mode {
         case .automatic:    startPresencePipeline()
@@ -381,6 +471,7 @@ class KioskManager: ObservableObject {
 
     private func handleCaptureResult(_ result: CaptureResult) {
         lastLuminance = result.luminance
+        hasLuminanceSample = true
         let isDark = result.luminance < (settings?.darkLuminanceThreshold ?? 20)
         lastFrameWasDark = isDark
         let personDetected = !result.observations.isEmpty
@@ -450,6 +541,7 @@ class KioskManager: ObservableObject {
             // Display changes are held back while app UI is up, so catch up now: the night
             // hours or a brightness may have changed in Settings.
             evaluateNight()
+            resolveDisplay()
             applyBrightness()
         }
         guard presenceDetector != nil else { return }
@@ -469,8 +561,27 @@ class KioskManager: ObservableObject {
         countdownTimer?.invalidate(); countdownTimer = nil
     }
 
+    /// Called by the presence modes with what they want shown. Whether that reaches the
+    /// screen is `resolveDisplay()`'s decision.
     private func transitionDisplay(to state: DisplayState) {
+        localDisplayState = state
+        resolveDisplay()
+    }
+
+    /// The single place `displayState` changes. A dashboard hold wins, then Home Assistant's
+    /// requested mode, then the presence mode.
+    private func resolveDisplay() {
         guard !showingSettings, !showingPINEntry else { return }
+        let state: DisplayState
+        if dashboardHoldUntil != nil {
+            state = .active
+        } else {
+            switch requestedMode {
+            case .auto:         state = localDisplayState
+            case .dashboard:    state = .active
+            case .idle, .night: state = .idle
+            }
+        }
         guard displayState != state else { return }
         // Active is slightly snappier (0.4 s) - the user just arrived and wants the screen now.
         // Idle is a touch slower (0.6 s) - a gradual fade feels more natural when the room empties.

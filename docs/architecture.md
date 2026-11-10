@@ -10,7 +10,7 @@ This document describes how DashPad is structured and how its major components i
 
 **No third-party dependencies.** The entire app is built on Apple system frameworks. This is a deliberate constraint - it keeps the build simple, the binary small, and the privacy claims verifiable.
 
-**Settings flow down, never up.** `AppSettings` is the single source of truth for configuration. It is injected into the SwiftUI environment at the root and read directly by any component that needs it. Nothing writes to `AppSettings` except the settings UI.
+**Settings flow down, never up.** `AppSettings` is the single source of truth for configuration. It is injected into the SwiftUI environment at the root and read directly by any component that needs it. Nothing writes to `AppSettings` except the settings UI. The Home Assistant link follows this too: it changes what `KioskManager` shows, never a stored setting.
 
 **Privacy by construction.** The camera pipeline is designed so that frames cannot accidentally persist - the session tears down after every sample, the buffer is released with the session, and the only in-memory copy is the optional debug image which exists only while the debug UI is open.
 
@@ -54,6 +54,12 @@ DashPad/
 │       ├── IdlePhotoPicker.swift     System photo picker, importer, thumbnail grid (Settings and onboarding)
 │       └── PhotoSlideshowView.swift  Slideshow driver, UIKit crossfade and drift, clock overlay
 │
+├── HomeAssistant/            (optional, off by default; see home-assistant-link.md)
+│   ├── HomeAssistantLink.swift  Entities, state reporting and command handling for DashPad
+│   ├── ESPHomeServer.swift      ESPHome native API device: listener, Bonjour, framing, messages
+│   ├── NoiseHandshake.swift     Noise_NNpsk0_25519_ChaChaPoly_SHA256 on CryptoKit
+│   └── ProtoWire.swift          Minimal Protocol Buffers writer and reader
+│
 └── Settings/
     ├── SettingsView.swift    NavigationSplitView settings panel; all settings sections
     ├── PINEntryOverlay.swift PIN entry (exit kiosk) and PIN setup (change PIN)
@@ -64,7 +70,7 @@ DashPad/
 
 ## Environment objects
 
-Three objects are injected at the root in `DashPadApp.swift` and available throughout the view hierarchy via `@EnvironmentObject`:
+Four objects are injected at the root in `DashPadApp.swift` and available throughout the view hierarchy via `@EnvironmentObject`:
 
 **`AppSettings`** - an `ObservableObject`. Every setting is an `@Published` stored property with a `didSet` observer that writes to `UserDefaults`. The exit PIN is the only exception: it is written to and read from Keychain via `KeychainHelper`. Views bind to `AppSettings` properties through the projected `$settings` wrapper.
 
@@ -73,6 +79,8 @@ Three objects are injected at the root in `DashPadApp.swift` and available throu
 Not every property on `KioskManager` is `@Published`. `ObservableObject` invalidates every observing view on any published change, so state that churns but is never rendered is deliberately left unpublished: `lastLuminance` is rewritten on every camera sample, and `manualWakeUntil` is internal to the schedule state machine. The debug overlay reads its own copy of the luminance from `PresenceDebugViewModel` rather than from `KioskManager`.
 
 **`WebViewController`** - an `ObservableObject` holding a handle on the dashboard's `WKWebView`. It sits at the root rather than inside `KioskBrowserView` because both the pull-tab drawer and `SettingsView` drive the same web view. Zoom is kept in `AppSettings.dashboardZoom`; `KioskBrowserView` applies changes to the web view, and the coordinator re-applies it after each page load.
+
+**`HomeAssistantLink`** - an `ObservableObject` that owns the ESPHome server while `AppSettings.homeAssistantLinkEnabled` is on. `ContentView` starts it next to `KioskManager.start(settings:)`, after onboarding. Its only published state is `status`, which the Settings pane shows. See [home-assistant-link.md](home-assistant-link.md).
 
 None of these objects is a singleton in the Swift sense - they are instantiated once in `DashPadApp` as `@StateObject` properties and live for the lifetime of the app.
 
@@ -177,6 +185,24 @@ restart sampling.
 In Settings, the night hours and Schedule mode's Active windows share one editor:
 `weeklyWindowSections(_:toggleTitle:sameDayTitle:)` takes a `ScheduleTarget` and edits whichever
 `WeeklySchedule` it names.
+
+### Requested mode and dashboard holds
+
+`transitionDisplay(to:)` no longer changes the display directly. The presence modes call it with
+what they want shown; it records that in `localDisplayState` and calls `resolveDisplay()`, the
+single place `displayState` changes. `resolveDisplay()` picks, in order:
+
+1. a **dashboard hold** (`holdDashboard(for:onEnd:)`): the dashboard, until the hold ends;
+2. the **requested mode** (`setRequestedMode(_:)`, a `RequestedMode`): Dashboard, Idle or Night;
+3. in Auto, `localDisplayState`.
+
+Both are driven by the Home Assistant link. With the link off the requested mode is always Auto
+and there are no holds, so `displayState` follows `localDisplayState` exactly as before. The
+camera pipeline and schedule timer keep running underneath a requested mode, which keeps
+`KioskManager.presence` truthful and lets Auto resume without a restart. A requested Night also
+makes `evaluateNight()` report night regardless of the hours. `wakeFromRequestedIdle()` is the
+tap handler for an idle screen Home Assistant asked for: it holds the dashboard for
+`manualWakeTimeout`, extending while the camera still sees someone.
 
 ### 2. PIN and settings access
 

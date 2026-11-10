@@ -64,6 +64,8 @@ The commercial iOS kiosk apps are priced and designed for retail and museum depl
 
 **Night screen.** An optional second idle screen that takes over during hours you choose: a dark clock or a blank screen overnight, at its own brightness, while the rest of the day keeps your usual idle screen. In Camera mode it can also stop someone walking past from waking the dashboard, so only a tap does.
 
+**Home Assistant link.** Optional, off by default. The iPad appears in Home Assistant as a device, with no add-on or integration to install: a presence sensor driven by the camera, the state of the screen, battery level, and a mode selector automations can use to wake the dashboard, send it idle or show the night screen. An action opens any page for a set time, for example a camera feed when the doorbell rings. The connection is local and encrypted. See [docs/home-assistant-link.md](docs/home-assistant-link.md).
+
 **Optional PIN lock.** A PIN can be set to gate access to settings. It is off by default. Face ID or your device passcode can unlock it if you forget the PIN.
 
 **Settings panel.** Accessed via a secret gesture (triple-tap the bottom-right corner, or whichever corner you choose in Settings → Dashboard). No visible settings button means no clutter on the dashboard.
@@ -225,6 +227,18 @@ the night screen is never shown.
 
 
 
+### Home Assistant
+
+Makes the iPad a device in Home Assistant, using the ESPHome integration Home Assistant already
+includes. Setup, the list of entities, example automations and how it works are in
+[docs/home-assistant-link.md](docs/home-assistant-link.md).
+
+| Setting             | Default   | Description |
+| ------------------- | --------- | ----------- |
+| Home Assistant Link | Off       | Turns the link on. While it is off, DashPad accepts no network connections. |
+| Device Name         | DashPad   | The name shown in Home Assistant. |
+| Encryption Key      | Generated | Home Assistant asks for it when you add the iPad. New Key replaces it. |
+
 ### Brightness
 
 
@@ -252,11 +266,12 @@ DashPad/
 ├── Kiosk/                WKWebView wrapper and navigation policy
 ├── Presence/             Camera capture, Vision requests, presence debug overlay
 ├── Idle/                 Idle screen views (clock, photos, blank, custom URL)
+├── HomeAssistant/        Optional Home Assistant link: an ESPHome-compatible device server
 ├── Onboarding/           First-run onboarding flow and animated backgrounds
 └── Settings/             SwiftUI settings panel, PIN entry and setup
 ```
 
-`AppSettings` (`AppSettings.swift`) is the single source of truth for all user configuration. It is an `ObservableObject` injected into the SwiftUI environment at the root and read directly by any view or manager that needs it. Settings are persisted to `UserDefaults` via `didSet` observers. The exit PIN is the only value stored in Keychain.
+`AppSettings` (`AppSettings.swift`) is the single source of truth for all user configuration. It is an `ObservableObject` injected into the SwiftUI environment at the root and read directly by any view or manager that needs it. Settings are persisted to `UserDefaults` via `didSet` observers. The exit PIN and the Home Assistant link's encryption key are the only values stored in Keychain.
 
 `KioskManager` (`KioskManager.swift`) is the central coordinator. It drives the display state machine (`active` / `idle`), manages all three presence modes (camera pipeline, schedule timer, or always-active), handles the secret gesture and PIN flow, and manages screen brightness transitions. Views observe it via the SwiftUI environment.
 
@@ -264,7 +279,9 @@ DashPad/
 
 `ContentView` (`ContentView.swift`) is a thin switcher. It reads `KioskManager.displayState` and renders either `KioskBrowserView` (active) or `IdleView` (idle), plus the PIN overlay when needed.
 
-For a full architectural narrative, see [docs/architecture.md](docs/architecture.md). For a deeper walkthrough of the presence pipeline specifically, see [docs/presence-pipeline.md](docs/presence-pipeline.md).
+`HomeAssistantLink` (`HomeAssistant/HomeAssistantLink.swift`) is the optional bridge to Home Assistant. It runs `ESPHomeServer`, a small implementation of the ESPHome native API, reports `KioskManager`'s state as entities and turns Home Assistant's commands into calls on `KioskManager` and `WebViewController`.
+
+For a full architectural narrative, see [docs/architecture.md](docs/architecture.md). For a deeper walkthrough of the presence pipeline specifically, see [docs/presence-pipeline.md](docs/presence-pipeline.md). For the Home Assistant link, see [docs/home-assistant-link.md](docs/home-assistant-link.md).
 
 ---
 
@@ -278,6 +295,7 @@ DashPad is built around a simple principle: the iPad is yours, and what happens 
 - **The camera runs in short bursts, not continuously.** Each sample starts a fresh session, waits about 3 seconds for auto-exposure to settle, captures one frame, then tears the session down. That frame is processed in memory by Apple's Vision framework and immediately discarded. Nothing is written to disk or transmitted.
 - **The camera is off when the room is dark.** If the captured frame's luminance falls below the configured threshold, the detector does not run and the next sample is scheduled at the slower night rate.
 - **No outbound network requests** originate from the app itself. All network activity is the WebView loading your URL.
+- **No inbound connections unless you turn on the Home Assistant link.** It is off by default. When on, DashPad accepts encrypted connections from your local network only, and tells Home Assistant whether someone is in front of the iPad, what the screen is showing, the room's brightness and the battery state. No camera image is ever sent.
 - **Settings are stored on-device only** in `UserDefaults`. No iCloud sync, no cloud backup.
 - **The exit PIN is stored in the iOS Keychain** and never transmitted.
 

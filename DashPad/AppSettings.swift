@@ -51,6 +51,13 @@ class AppSettings: ObservableObject {
     /// A whole percentage: stepping a `Double` by 0.1 drifts, so it would never land back on 100.
     @Published var dashboardZoom: Int { didSet { save(dashboardZoom, key: .dashboardZoom) } }
 
+    // Home Assistant link. Off by default: with it off DashPad opens no network listener.
+    @Published var homeAssistantLinkEnabled: Bool { didSet { save(homeAssistantLinkEnabled, key: .homeAssistantLinkEnabled) } }
+    @Published var homeAssistantDeviceName: String { didSet { save(homeAssistantDeviceName, key: .homeAssistantDeviceName) } }
+    /// The link's encryption key: 32 random bytes, base64, as Home Assistant expects it typed.
+    /// Kept in the Keychain; created the first time it is needed.
+    @Published private(set) var homeAssistantKey: String
+
     // PIN is stored in Keychain
     @Published var exitPIN: String {
         didSet { KeychainHelper.write(key: Self.pinKeychainKey, value: exitPIN) }
@@ -65,6 +72,7 @@ class AppSettings: ObservableObject {
     static let pinLength = 4
 
     private static let pinKeychainKey = "com.rafapages.dashpad.exitPIN"
+    private static let homeAssistantKeychainKey = "com.rafapages.dashpad.homeAssistantKey"
     /// Owned by `ContentView`'s `@AppStorage`; read here only to recognise a fresh install.
     private static let onboardingCompletedKey = "hasCompletedOnboarding"
 
@@ -109,6 +117,8 @@ class AppSettings: ObservableObject {
         nightClockTheme = ClockTheme(rawValue: ud.string(forKey: Key.nightClockTheme.rawValue) ?? "") ?? .night
         nightBrightness = ud.optionalDouble(forKey: Key.nightBrightness.rawValue) ?? 0.05
         nightWakeOnPresence = ud.object(forKey: Key.nightWakeOnPresence.rawValue) as? Bool ?? false
+        homeAssistantLinkEnabled = ud.object(forKey: Key.homeAssistantLinkEnabled.rawValue) as? Bool ?? false
+        homeAssistantDeviceName = ud.string(forKey: Key.homeAssistantDeviceName.rawValue) ?? "DashPad"
         hideStatusBar = ud.object(forKey: Key.hideStatusBar.rawValue) as? Bool ?? true
         preventAutoLock = ud.object(forKey: Key.preventAutoLock.rawValue) as? Bool ?? true
         settingsCorner = SettingsCorner(rawValue: ud.string(forKey: Key.settingsCorner.rawValue) ?? "") ?? .bottomRight
@@ -120,11 +130,22 @@ class AppSettings: ObservableObject {
         // makes onboarding's PIN step look broken. An unfinished onboarding means a fresh start.
         if !ud.bool(forKey: Self.onboardingCompletedKey) {
             KeychainHelper.delete(key: Self.pinKeychainKey)
+            KeychainHelper.delete(key: Self.homeAssistantKeychainKey)
         }
+        homeAssistantKey = Self.loadOrCreateHomeAssistantKey()
         exitPIN = KeychainHelper.read(key: Self.pinKeychainKey) ?? ""
 
         // Files from an import that never finished (the app quit mid-way) belong to no setting.
         IdlePhotoStore.removeFiles(notIn: idlePhotos)
+    }
+
+    /// Whether the domain allowlist lets the dashboard web view open `url`. An empty list allows
+    /// everything; otherwise the host must be a listed domain or one of its subdomains.
+    func allowsNavigation(to url: URL) -> Bool {
+        let domains = allowedDomainList
+        guard !domains.isEmpty else { return true }
+        let host = url.host ?? ""
+        return domains.contains { host == $0 || host.hasSuffix(".\($0)") }
     }
 
     var allowedDomainList: [String] {
@@ -132,6 +153,50 @@ class AppSettings: ObservableObject {
             .split(separator: ",")
             .map { $0.trimmingCharacters(in: .whitespaces) }
             .filter { !$0.isEmpty }
+    }
+
+    // MARK: - Home Assistant link identity
+
+    /// Replaces the encryption key. Home Assistant can no longer connect until the new key is
+    /// entered there.
+    func regenerateHomeAssistantKey() {
+        let key = Self.randomBytes(32).base64EncodedString()
+        KeychainHelper.write(key: Self.homeAssistantKeychainKey, value: key)
+        homeAssistantKey = key
+    }
+
+    /// Twelve hex digits standing in for the MAC address every ESPHome device reports, which
+    /// iOS does not let apps read. Made up once and kept, because Home Assistant uses it to
+    /// recognise this iPad. The first byte marks it as locally administered, not a real one.
+    var homeAssistantMACAddress: String {
+        let ud = UserDefaults.standard
+        if let stored = ud.string(forKey: Key.homeAssistantMACAddress.rawValue), stored.count == 12 {
+            return stored
+        }
+        var bytes = [UInt8](Self.randomBytes(6))
+        bytes[0] = (bytes[0] | 0x02) & 0xFE
+        let mac = bytes.map { String(format: "%02x", $0) }.joined()
+        ud.set(mac, forKey: Key.homeAssistantMACAddress.rawValue)
+        return mac
+    }
+
+    private static func loadOrCreateHomeAssistantKey() -> String {
+        #if DEBUG
+        // Lets a test client connect to a simulator build with a key it knows.
+        if let key = ProcessInfo.processInfo.environment["DASHPAD_HA_KEY"] { return key }
+        #endif
+        if let key = KeychainHelper.read(key: homeAssistantKeychainKey),
+           Data(base64Encoded: key)?.count == 32 {
+            return key
+        }
+        let key = randomBytes(32).base64EncodedString()
+        KeychainHelper.write(key: homeAssistantKeychainKey, value: key)
+        return key
+    }
+
+    private static func randomBytes(_ count: Int) -> Data {
+        var generator = SystemRandomNumberGenerator()
+        return Data((0..<count).map { _ in UInt8.random(in: .min ... .max, using: &generator) })
     }
 
     // MARK: - Private
@@ -144,6 +209,7 @@ class AppSettings: ObservableObject {
         case presenceMode, weeklySchedule, manualWakeTimeout
         case nightScreenEnabled, nightSchedule, nightScreenType, nightClockStyle, nightClockTheme
         case nightBrightness, nightWakeOnPresence
+        case homeAssistantLinkEnabled, homeAssistantDeviceName, homeAssistantMACAddress
         case idleBrightness, activeBrightness, cameraSampleRate, nightSampleRate
         case presenceRecheckInterval, darkLuminanceThreshold
         case allowedDomains, customCSS, customJS, favouriteURLs, detectionMode

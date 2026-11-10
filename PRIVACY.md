@@ -44,6 +44,21 @@ The only network requests made during normal operation originate from the `WKWeb
 
 ---
 
+## Home Assistant Link
+
+The Home Assistant link is off by default. While it is off, DashPad accepts no network connections and announces nothing on your network.
+
+If you turn it on in Settings → Home Assistant:
+
+- DashPad announces itself on your local network (Bonjour, `_esphomelib._tcp`) with the device name you chose, a made-up device identifier and its version, so Home Assistant can find it.
+- DashPad accepts connections on TCP port 6053. Every connection is encrypted and must prove it holds the encryption key shown in Settings; anything else is refused. The key is stored in the iOS Keychain.
+- To a connected Home Assistant, DashPad reports: whether the camera currently sees someone, whether the screen is showing the dashboard, the idle screen or the night screen, the average brightness of the last camera frame (a single number), the battery level and whether the iPad is charging, the device name, the iPad model name and the DashPad version.
+- Home Assistant can change what the screen shows and open a web page in the dashboard, limited to the domains you allow in Settings.
+
+No camera image, photo, PIN or other setting is ever sent. DashPad still makes no outbound connections: Home Assistant connects to the iPad, never the other way round, and DashPad holds no Home Assistant password or token. Nothing is sent to the developer or to any third party. What Home Assistant does with the information it receives is governed by your Home Assistant installation.
+
+---
+
 ## Analytics
 
 None. DashPad contains no crash reporting SDK, no usage tracking, and no third-party analytics framework of any kind.
@@ -52,7 +67,7 @@ None. DashPad contains no crash reporting SDK, no usage tracking, and no third-p
 
 ## Third-Party SDKs
 
-None. DashPad uses only Apple system frameworks: SwiftUI, AVFoundation, Vision, WebKit, LocalAuthentication, PhotosUI, ImageIO, Core Image, and TipKit. TipKit shows an in-app tip and remembers on the device whether it has been dismissed; nothing is transmitted. There are no CocoaPods, Swift Package Manager, or Carthage dependencies.
+None. DashPad uses only Apple system frameworks: SwiftUI, AVFoundation, Vision, WebKit, LocalAuthentication, PhotosUI, ImageIO, Core Image, Network, CryptoKit, and TipKit. TipKit shows an in-app tip and remembers on the device whether it has been dismissed; nothing is transmitted. There are no CocoaPods, Swift Package Manager, or Carthage dependencies.
 
 ---
 
