@@ -177,7 +177,11 @@ struct WebViewRepresentable: UIViewRepresentable {
         // On a first run KioskBrowserView starts the load when onboarding completes. Loading the
         // default address now would raise the Local Network prompt over the setup assistant.
         guard UserDefaults.standard.bool(forKey: "hasCompletedOnboarding") else { return }
-        webController.goHome(url: settings.homeURL)
+        // makeUIView runs inside a SwiftUI view update, and goHome publishes `isLoadingHome`.
+        // Publishing from there is undefined behaviour, so start the load once the update ends.
+        DispatchQueue.main.async { [webController, settings] in
+            webController.goHome(url: settings.homeURL)
+        }
     }
 }
 
