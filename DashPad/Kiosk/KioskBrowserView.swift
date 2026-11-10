@@ -127,9 +127,14 @@ struct WebViewRepresentable: UIViewRepresentable {
     // MARK: - Script injection
 
     private func injectUserScripts(into config: WKWebViewConfiguration) {
-        // Kiosk UX hardening: disable text selection and context menus
+        // Kiosk UX hardening: disable text selection and context menus.
+        // Editable elements are put back to `text`: before WebKit r293028 (2022, after iOS 15
+        // shipped) `user-select: none` also made a field uneditable, which froze the Home
+        // Assistant login on iPadOS 15 after the first character (issue #7). That login
+        // renders its <input> outside Shadow DOM, so the `*` rule reaches it directly.
         let kioskCSS = """
         * { -webkit-user-select: none !important; -webkit-touch-callout: none !important; }
+        input, textarea, [contenteditable], [contenteditable] * { -webkit-user-select: text !important; }
         """
         addCSS(kioskCSS, to: config)
 

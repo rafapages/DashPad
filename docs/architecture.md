@@ -98,7 +98,7 @@ DashPadApp
 ContentView.sheet → SettingsView  (when showingSettings == true)
 ```
 
-`ContentView` is deliberately thin. It contains no logic beyond reading `KioskManager.displayState` and rendering the appropriate branch. The corner tap target is an invisible `Color.clear` rectangle sitting in the corner set by `AppSettings.settingsCorner` (bottom-right by default), ignoring the safe area - `onTapGesture(count: 3)` calls `KioskManager.handleSecretTap()`.
+`ContentView` is deliberately thin. It contains no logic beyond reading `KioskManager.displayState` and rendering the appropriate branch. The corner tap target is `CornerTapTarget`, an invisible 88×88 pt `UIView` (via `UIViewRepresentable`) sitting in the corner set by `AppSettings.settingsCorner` (bottom-right by default), ignoring the safe area. A `UITapGestureRecognizer` with `numberOfTapsRequired = 3` calls `KioskManager.handleSecretTap()`. It is UIKit rather than a SwiftUI `onTapGesture(count: 3)` on `Color.clear` because that SwiftUI version never fired over the `WKWebView` on iPadOS 15 (issue #7); a real `UIView` is hit-tested the same way on every release.
 
 Both top-level sheets - `SettingsView` and `OnboardingView` - declare their size explicitly with
 `centredSheetSizing()` (`CentredSheetSizing`, an 800x640 `PresentationSizing`, on iOS 18+) rather
@@ -174,7 +174,7 @@ The system Auto-Lock is kept out of the way separately: `ContentView` sets `UIAp
 
 `injectUserScripts(into:)` is called during `WKWebViewConfiguration` setup (before the `WKWebView` is created). It injects two things:
 
-1. A hardcoded kiosk CSS block that disables text selection and touch callouts on all elements.
+1. A hardcoded kiosk CSS block that disables text selection and touch callouts on all elements, then sets `-webkit-user-select: text` back on `input`, `textarea` and `contenteditable` content. Before WebKit r293028 (2022, so iOS 15 and earlier) `user-select: none` also made a field uneditable, which froze the Home Assistant login after one character (issue #7). That login renders its `<input>` outside Shadow DOM, so the `*` rule reaches it.
 2. The user's custom CSS and custom JS from `AppSettings`, if non-empty.
 
 All CSS is injected as JavaScript that creates a `<style>` element and appends it to `<head>`. The CSS string is escaped for embedding in a JS string literal before injection. Scripts are registered with `.atDocumentEnd` injection time so that `document.head` exists when they run.

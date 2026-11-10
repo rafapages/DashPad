@@ -28,6 +28,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   and onboarding offers the same thumbnails. The themed faces shift a few points every 10 minutes
   to avoid burn-in.
 
+### Fixed
+- Typing in the Home Assistant login on iPadOS 15 froze the page after the first character. The
+  CSS that turns off text selection on the dashboard no longer applies to text fields, which
+  WebKit before iOS 16 treated as not editable (issue #7).
+- Triple-tapping the settings corner did nothing on iPadOS 15. The corner target is now a UIKit
+  view with its own triple-tap recognizer instead of a SwiftUI gesture (issue #7).
+
 - Photos idle screen: pick photos with the system photo picker (no photo library permission
   needed). One photo stays on screen; two or more play as a slideshow with crossfades, changing
   every 10 seconds to 1 hour, optionally shuffled. Photos can fill the screen or be shown whole

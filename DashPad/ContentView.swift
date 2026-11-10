@@ -33,12 +33,8 @@ struct ContentView: View {
             }
 
             // Invisible 88×88 pt corner tap target for secret gesture
-            Color.clear
+            CornerTapTarget { kioskManager.handleSecretTap() }
                 .frame(width: 88, height: 88)
-                .contentShape(Rectangle())
-                .onTapGesture(count: 3) {
-                    kioskManager.handleSecretTap()
-                }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: settings.settingsCorner.alignment)
                 .ignoresSafeArea()
 
@@ -87,6 +83,36 @@ struct ContentView: View {
 
     private func applyIdleTimer(_ preventAutoLock: Bool) {
         UIApplication.shared.isIdleTimerDisabled = preventAutoLock
+    }
+}
+
+/// The secret corner target as a real UIView with a UIKit triple-tap recognizer.
+/// A SwiftUI `Color.clear` with `onTapGesture(count: 3)` drawn over the dashboard's WKWebView
+/// never fired on iPadOS 15 (issue #7). A UIView is hit-tested by UIKit itself, the same way on
+/// every iOS release, so it no longer depends on how SwiftUI routes touches over a
+/// UIViewRepresentable. Like the old target it swallows taps on whatever lies beneath it.
+private struct CornerTapTarget: UIViewRepresentable {
+    let action: () -> Void
+
+    func makeUIView(context: Context) -> UIView {
+        let view = UIView()
+        view.backgroundColor = .clear
+        let tap = UITapGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.fire))
+        tap.numberOfTapsRequired = 3
+        view.addGestureRecognizer(tap)
+        return view
+    }
+
+    func updateUIView(_ uiView: UIView, context: Context) {
+        context.coordinator.action = action
+    }
+
+    func makeCoordinator() -> Coordinator { Coordinator(action: action) }
+
+    final class Coordinator: NSObject {
+        var action: () -> Void
+        init(action: @escaping () -> Void) { self.action = action }
+        @objc func fire() { action() }
     }
 }
 
