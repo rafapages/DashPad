@@ -157,6 +157,8 @@ A capture sequence has been requested from `idle` state. Lasts approximately 3 s
 **`idle`**  
 No presence. Idle screen shown at `idleBrightness`. Camera is off. A one-shot `sampleTimer` is scheduled: `nightSampleRate` if the last frame was dark, `cameraSampleRate` otherwise.
 
+During the night screen's hours with `nightWakeOnPresence` off, no `sampleTimer` is scheduled at all: the state stays `idle` with the camera off until a tap (`handleScreenTap()`) or the end of the night hours, when `KioskManager.evaluateNight()` re-enters `idle` and sampling resumes. The night screen is shown at `nightBrightness`. See "Night screen" in [architecture.md](architecture.md).
+
 ### Transition table
 
 | From | To | Trigger |
@@ -193,7 +195,7 @@ private var countdownTimer: Timer?  // fires from countingDown → idle
 - Idle → active: `easeInOut(duration: 0.4)` (snappy - user has just arrived)
 - Active → idle: `easeInOut(duration: 0.6)` (slightly slower - feels like a natural fade)
 
-Screen brightness is set on `UIScreen` at each transition: `activeBrightness` when entering active, `idleBrightness` when entering idle.
+Screen brightness is set on `UIScreen` at each transition: `activeBrightness` when entering active, `idleBrightness` when entering idle, or `nightBrightness` when entering idle during the night screen's hours.
 
 ---
 
@@ -235,3 +237,4 @@ Screen brightness is set on `UIScreen` at each transition: `activeBrightness` wh
 - The Vision request runs synchronously in memory; the `CVPixelBuffer` is released when the session tears down.
 - The `debugImage` in `CaptureResult` is a `UIImage` held in memory only while the debug UI is open. It is never written to disk.
 - When `presenceMode` is not `.automatic`, `AVCaptureDevice` is never accessed and camera permission is never requested.
+- While the night screen is showing with `nightWakeOnPresence` off, the camera is not used at all.

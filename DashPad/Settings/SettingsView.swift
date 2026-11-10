@@ -501,17 +501,7 @@ struct SettingsView: View {
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
             cameraAuthorizationStatus = AVCaptureDevice.authorizationStatus(for: .video)
         }
-        .sheet(item: $addWindowRequest) { request in
-            NavigationStackCompat {
-                ScheduleWindowEditView(
-                    initial: ScheduleWindow(startMinute: 480, endMinute: 1320),
-                    allWindows: settings.weeklySchedule.windows[request.dayIndex],
-                    title: "New Window"
-                ) { newWindow in
-                    settings.weeklySchedule.windows[request.dayIndex].append(newWindow)
-                }
-            }
-        }
+        .sheet(item: $addWindowRequest) { addWindowSheet($0) }
     }
 
     @ViewBuilder
@@ -620,33 +610,64 @@ struct SettingsView: View {
             Text("How long the dashboard stays visible after tapping the idle screen. Each tap resets the timer.")
         }
 
+        weeklyWindowSections(.activeWindows, toggleTitle: "Same Schedule Every Day", sameDayTitle: "Active Windows")
+    }
+
+    // MARK: - Weekly windows (Schedule mode's active windows, and the night screen's hours)
+
+    private func scheduleBinding(_ target: ScheduleTarget) -> Binding<WeeklySchedule> {
+        switch target {
+        case .activeWindows: $settings.weeklySchedule
+        case .nightHours:    $settings.nightSchedule
+        }
+    }
+
+    /// The "same every day" toggle, then one list of windows or one per weekday.
+    @ViewBuilder
+    private func weeklyWindowSections(_ target: ScheduleTarget, toggleTitle: String, sameDayTitle: String) -> some View {
+        let schedule = scheduleBinding(target)
+
         Section {
-            Toggle("Same Schedule Every Day", isOn: s.weeklySchedule.sameEveryDay)
+            Toggle(toggleTitle, isOn: schedule.sameEveryDay)
         }
 
-        if settings.weeklySchedule.sameEveryDay {
-            windowSection(dayIndex: 0, title: "Active Windows", s: s)
+        if schedule.wrappedValue.sameEveryDay {
+            windowSection(target, dayIndex: 0, title: sameDayTitle)
         } else {
             let dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
             ForEach(0..<7, id: \.self) { dayIndex in
-                windowSection(dayIndex: dayIndex, title: dayNames[dayIndex], s: s)
+                windowSection(target, dayIndex: dayIndex, title: dayNames[dayIndex])
+            }
+        }
+    }
+
+    private func addWindowSheet(_ request: AddWindowRequest) -> some View {
+        let schedule = scheduleBinding(request.target)
+        return NavigationStackCompat {
+            ScheduleWindowEditView(
+                initial: request.target.newWindow,
+                allWindows: schedule.wrappedValue.windows[request.dayIndex],
+                title: "New Window"
+            ) { newWindow in
+                schedule.wrappedValue.windows[request.dayIndex].append(newWindow)
             }
         }
     }
 
     @ViewBuilder
-    private func windowSection(dayIndex: Int, title: String, s: EnvironmentObject<AppSettings>.Wrapper) -> some View {
+    private func windowSection(_ target: ScheduleTarget, dayIndex: Int, title: String) -> some View {
+        let schedule = scheduleBinding(target)
         Section {
-            let windows = settings.weeklySchedule.windows[dayIndex]
+            let windows = schedule.wrappedValue.windows[dayIndex]
             ForEach(Array(windows.enumerated()), id: \.element.id) { idx, window in
                 NavigationLink {
                     ScheduleWindowEditView(
                         initial: window,
-                        allWindows: settings.weeklySchedule.windows[dayIndex],
+                        allWindows: schedule.wrappedValue.windows[dayIndex],
                         title: "Edit Window"
                     ) { updated in
-                        guard idx < settings.weeklySchedule.windows[dayIndex].count else { return }
-                        settings.weeklySchedule.windows[dayIndex][idx] = updated
+                        guard idx < schedule.wrappedValue.windows[dayIndex].count else { return }
+                        schedule.wrappedValue.windows[dayIndex][idx] = updated
                     }
                 } label: {
                     HStack {
@@ -666,20 +687,20 @@ struct SettingsView: View {
                 }
                 .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                     Button(role: .destructive) {
-                        settings.weeklySchedule.windows[dayIndex].remove(at: idx)
+                        schedule.wrappedValue.windows[dayIndex].remove(at: idx)
                     } label: {
                         Label("Delete", systemImage: "trash")
                     }
                 }
             }
             Button {
-                addWindowRequest = AddWindowRequest(dayIndex: dayIndex)
+                addWindowRequest = AddWindowRequest(target: target, dayIndex: dayIndex)
             } label: {
                 Label("Add Window", systemImage: "plus")
             }
-            if !settings.weeklySchedule.windows[dayIndex].isEmpty {
+            if !schedule.wrappedValue.windows[dayIndex].isEmpty {
                 Button(role: .destructive) {
-                    settings.weeklySchedule.windows[dayIndex].removeAll()
+                    schedule.wrappedValue.windows[dayIndex].removeAll()
                 } label: {
                     Label("Remove All Windows", systemImage: "trash")
                 }
@@ -781,8 +802,15 @@ struct SettingsView: View {
             } footer: {
                 Text("Solid black screen. Pair with a low idle brightness to minimise power use.")
             }
+
+            nightScreenSections(s)
         }
         .animation(.default, value: settings.idleScreenType)
+        .animation(.default, value: settings.nightScreenEnabled)
+        .animation(.default, value: settings.nightScreenType)
+        .animation(.default, value: settings.nightClockStyle.isClassic)
+        .animation(.default, value: settings.nightSchedule.sameEveryDay)
+        .sheet(item: $addWindowRequest) { addWindowSheet($0) }
         .animation(.default, value: settings.clockStyle)
         .animation(.default, value: settings.idlePhotos.count > 1)
         .onChangeCompat(of: settings.clockStyle) { _ in invalidateIdleScreensTip() }
@@ -800,6 +828,50 @@ struct SettingsView: View {
         .clearNavigationBackground()
         .navigationTitle("Idle Screen")
         .navigationBarTitleDisplayMode(.inline)
+    }
+
+    /// The night screen: a second idle screen that takes over from the one chosen above during
+    /// the hours listed here. Off by default, and then nothing below the toggle is shown.
+    @ViewBuilder
+    private func nightScreenSections(_ s: EnvironmentObject<AppSettings>.Wrapper) -> some View {
+        Section {
+            Toggle("Night Screen", isOn: s.nightScreenEnabled)
+            if settings.nightScreenEnabled {
+                menuPicker("Show", selection: s.nightScreenType, \.displayName)
+                if settings.nightScreenType == .clock {
+                    ClockStylePicker(selection: s.nightClockStyle, appearance: settings.nightClockAppearance)
+                        .listRowInsets(EdgeInsets(top: 10, leading: 0, bottom: 10, trailing: 0))
+                    if !settings.nightClockStyle.isClassic {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("Theme")
+                            ClockThemePicker(selection: s.nightClockTheme, style: settings.nightClockStyle)
+                        }
+                        .padding(.vertical, 4)
+                    }
+                }
+                if settings.presenceMode == .automatic {
+                    Toggle("Wake When Someone Walks Up", isOn: s.nightWakeOnPresence)
+                }
+            }
+        } header: {
+            Text("Night")
+        } footer: {
+            VStack(alignment: .leading, spacing: 6) {
+                if settings.nightScreenEnabled, settings.presenceMode == .alwaysActive {
+                    Label("Presence is set to Always Active, so the dashboard never goes idle and the night screen is never shown.",
+                          systemImage: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.orange)
+                }
+                Text("Shows a different idle screen during the hours you choose, such as a dark clock overnight. It replaces the idle screen above for those hours; it doesn't send the dashboard idle by itself. Its brightness is under Brightness.")
+                if settings.nightScreenEnabled, settings.presenceMode == .automatic {
+                    Text("With Wake When Someone Walks Up off, the camera stays off while the night screen is showing and only a tap wakes the dashboard.")
+                }
+            }
+        }
+
+        if settings.nightScreenEnabled {
+            weeklyWindowSections(.nightHours, toggleTitle: "Same Hours Every Day", sameDayTitle: "Night Hours")
+        }
     }
 
     /// The user has found the new idle screens, so the tip and badge pointing at them have done their job.
@@ -884,6 +956,13 @@ struct SettingsView: View {
             Section {
                 SliderRow(label: "Active", value: s.activeBrightness, range: 0...1, step: 0.05, unit: "%", displayMultiplier: 100)
                 SliderRow(label: "Idle", value: s.idleBrightness, range: 0...1, step: 0.05, unit: "%", displayMultiplier: 100)
+                if settings.nightScreenEnabled {
+                    SliderRow(label: "Night", value: s.nightBrightness, range: 0...1, step: 0.05, unit: "%", displayMultiplier: 100)
+                }
+            } footer: {
+                if settings.nightScreenEnabled {
+                    Text("Night applies while the night screen is showing. Set its hours in Idle Screen.")
+                }
             }
         }
         .hiddenScrollContentBackground()
@@ -925,7 +1004,21 @@ struct SettingsView: View {
 
 private struct AddWindowRequest: Identifiable {
     let id = UUID()
+    let target: ScheduleTarget
     let dayIndex: Int
+}
+
+/// The two weekly schedules Settings edits with the same window list.
+private enum ScheduleTarget {
+    case activeWindows, nightHours
+
+    /// What a new window starts as: the day for Schedule mode, overnight for the night screen.
+    var newWindow: ScheduleWindow {
+        switch self {
+        case .activeWindows: ScheduleWindow(startMinute: 8 * 60, endMinute: 22 * 60)
+        case .nightHours:    ScheduleWindow(startMinute: 22 * 60, endMinute: 7 * 60)
+        }
+    }
 }
 
 // MARK: - Schedule window edit view

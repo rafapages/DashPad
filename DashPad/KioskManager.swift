@@ -3,7 +3,8 @@
 
 // KioskManager.swift - central coordinator for the app.
 // Owns the active presence mode (camera pipeline, schedule timer, or always-active),
-// drives the active/idle display state machine, and manages the PIN/settings access flow.
+// drives the active/idle display state machine, decides when the night screen replaces the
+// idle screen, and manages the PIN/settings access flow.
 // Injected into the SwiftUI environment; views call its public methods rather than
 // modifying state directly.
 
@@ -45,6 +46,10 @@ class KioskManager: ObservableObject {
         }
     }
     @Published private(set) var stateTimerStartDate: Date?
+    /// True during the night hours while the night screen is enabled, whatever the display is
+    /// showing. It only picks which idle screen and brightness are used once the display goes
+    /// idle - it never sends the display idle by itself.
+    @Published private(set) var isNightActive = false
 
     // Deliberately not @Published. ObservableObject invalidates every observing view on any
     // published change, and `lastLuminance` is rewritten on every camera sample - publishing it
@@ -62,6 +67,11 @@ class KioskManager: ObservableObject {
     private var recheckTimer: Timer?
     private var countdownTimer: Timer?
     private var scheduleTimer: Timer?
+    private var nightTimer: Timer?
+    private var settingsObserver: AnyCancellable?
+    /// Night hours with "wake when someone walks up" off: the camera stays off while idle, so
+    /// only a tap brings the dashboard back.
+    private var presenceWakeSuppressed = false
     private var lastFrameWasDark = false
     private var started = false
 
@@ -75,6 +85,8 @@ class KioskManager: ObservableObject {
         guard !started else { return }
         started = true
         self.settings = settings
+        // Before the presence mode starts, so the first idle period already knows about night.
+        startNightEvaluation()
 
         switch settings.presenceMode {
         case .automatic:    startPresencePipeline()
@@ -100,21 +112,43 @@ class KioskManager: ObservableObject {
             }
         }
 
-        let calendar = Calendar.current
-        let now = Date()
-        let minuteOfDay = calendar.component(.hour, from: now) * 60
-                        + calendar.component(.minute, from: now)
-        let weekday = calendar.component(.weekday, from: now) - 1 // 0-indexed
-
-        let windows: [ScheduleWindow]
-        if settings.weeklySchedule.sameEveryDay {
-            windows = settings.weeklySchedule.windows[0]
-        } else {
-            windows = settings.weeklySchedule.windows[weekday]
-        }
-
-        let shouldBeActive = windows.contains { $0.isActive(at: minuteOfDay) }
+        let shouldBeActive = settings.weeklySchedule.isActive(at: Date())
         transitionDisplay(to: shouldBeActive ? .active : .idle)
+    }
+
+    // MARK: - Night screen
+
+    /// Works out whether the night hours apply right now and, if that changed, swaps the idle
+    /// screen and brightness and pauses or resumes camera sampling. Runs every 30 s, whenever a
+    /// setting changes, when the app UI is dismissed and on `applicationDidBecomeActive`.
+    func evaluateNight() {
+        guard let settings else { return }
+        let night = settings.nightScreenEnabled && settings.nightSchedule.isActive(at: Date())
+        let suppressed = night && !settings.nightWakeOnPresence
+        let nightChanged = night != isNightActive
+        let suppressionChanged = suppressed != presenceWakeSuppressed
+        presenceWakeSuppressed = suppressed
+
+        if nightChanged {
+            withAnimation(.easeInOut(duration: 0.6)) { isNightActive = night }
+            applyBrightness()
+        }
+        // Re-entering idle is what stops or restarts the sample timer.
+        if nightChanged || suppressionChanged, presenceDetector != nil, presenceState == .idle {
+            enterIdle()
+        }
+    }
+
+    private func startNightEvaluation() {
+        evaluateNight()
+        nightTimer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { [weak self] _ in
+            self?.evaluateNight()
+        }
+        // `objectWillChange` fires before the new value is stored; hopping to the next turn of
+        // the main queue means `evaluateNight()` reads the setting as it now is.
+        settingsObserver = settings?.objectWillChange
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in self?.evaluateNight() }
     }
 
     /// Wakes the display temporarily in response to a tap on the idle screen while in
@@ -255,6 +289,11 @@ class KioskManager: ObservableObject {
         stateTimerStartDate = nil
         transitionDisplay(to: .idle)
 
+        guard !presenceWakeSuppressed else {
+            debugViewModel?.addEvent("🌙  Night screen — camera off until tapped")
+            return
+        }
+
         let rate = lastFrameWasDark
             ? (settings?.nightSampleRate ?? 60)
             : (settings?.cameraSampleRate ?? 5)
@@ -354,7 +393,10 @@ class KioskManager: ObservableObject {
 
         switch presenceState {
         case .sampling:
-            if isDark {
+            if presenceWakeSuppressed {
+                // The night hours began while this sample was in flight.
+                enterIdle()
+            } else if isDark {
                 let nightRate = settings?.nightSampleRate ?? 60
                 debugViewModel?.addEvent(String(format: "🌙  Dark (lum %.0f) — next sample in %.0fs (night rate)", result.luminance, nightRate))
                 enterIdle()
@@ -404,6 +446,12 @@ class KioskManager: ObservableObject {
     /// shows live detections - display/brightness transitions are suppressed separately.
     /// No-op in schedule and always-active modes.
     private func syncPresenceWithAppUI() {
+        if !showingSettings, !showingPINEntry {
+            // Display changes are held back while app UI is up, so catch up now: the night
+            // hours or a brightness may have changed in Settings.
+            evaluateNight()
+            applyBrightness()
+        }
         guard presenceDetector != nil else { return }
         if showingSettings || showingPINEntry {
             guard debugViewModel == nil else { return }
@@ -427,8 +475,17 @@ class KioskManager: ObservableObject {
         // Active is slightly snappier (0.4 s) - the user just arrived and wants the screen now.
         // Idle is a touch slower (0.6 s) - a gradual fade feels more natural when the room empties.
         withAnimation(.easeInOut(duration: state == .active ? 0.4 : 0.6)) { displayState = state }
-        let brightness = state == .active ? settings?.activeBrightness : settings?.idleBrightness
-        if let b = brightness { mainScreen?.brightness = b }
+        applyBrightness()
+    }
+
+    /// Sets the screen to the brightness that goes with what is showing: the dashboard, the
+    /// idle screen or the night screen.
+    private func applyBrightness() {
+        guard !showingSettings, !showingPINEntry, let settings else { return }
+        switch displayState {
+        case .active: mainScreen?.brightness = settings.activeBrightness
+        case .idle:   mainScreen?.brightness = isNightActive ? settings.nightBrightness : settings.idleBrightness
+        }
     }
 
     private var mainScreen: UIScreen? {

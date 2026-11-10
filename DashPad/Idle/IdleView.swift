@@ -2,18 +2,40 @@
 // Licensed under PolyForm Noncommercial 1.0.0. Commercial use requires a separate license: dashpad@rafapages.com
 
 // IdleView.swift - shown whenever KioskManager.displayState is .idle.
-// Switches between the idle screen modes (clock, photos, blank, custom URL).
+// Switches between the idle screen modes (clock, photos, blank, custom URL), or shows the
+// night screen while KioskManager.isNightActive.
 
 import SwiftUI
 import WebKit
 
 struct IdleView: View {
     @EnvironmentObject var settings: AppSettings
+    @EnvironmentObject var kioskManager: KioskManager
 
     var body: some View {
         ZStack {
             Color.black.ignoresSafeArea()
 
+            if kioskManager.isNightActive {
+                nightScreen.transition(.opacity)
+            } else {
+                idleScreen.transition(.opacity)
+            }
+        }
+        .ignoresSafeArea()
+    }
+
+    @ViewBuilder
+    private var nightScreen: some View {
+        switch settings.nightScreenType {
+        case .blank: Color.black
+        case .clock: ClockView(isNight: true)
+        }
+    }
+
+    @ViewBuilder
+    private var idleScreen: some View {
+        ZStack {
             switch settings.idleScreenType {
             case .blank:
                 Color.black
@@ -37,7 +59,6 @@ struct IdleView: View {
                 }
             }
         }
-        .ignoresSafeArea()
     }
 }
 
@@ -163,4 +184,5 @@ private struct IdleWebView: UIViewRepresentable {
 #Preview {
     IdleView()
         .environmentObject(AppSettings())
+        .environmentObject(KioskManager())
 }

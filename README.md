@@ -62,6 +62,8 @@ The commercial iOS kiosk apps are priced and designed for retail and museum depl
 
 **Idle screen.** Four modes: a clock (eight faces, from two dark, night-friendly ones to six colourful themed faces), your own photos (one, or several as a slideshow), a pure black screen, or a custom URL (useful for a dedicated screensaver dashboard or a photo frame). Active and idle brightness are independently configurable.
 
+**Night screen.** An optional second idle screen that takes over during hours you choose: a dark clock or a blank screen overnight, at its own brightness, while the rest of the day keeps your usual idle screen. In Camera mode it can also stop someone walking past from waking the dashboard, so only a tap does.
+
 **Optional PIN lock.** A PIN can be set to gate access to settings. It is off by default. Face ID or your device passcode can unlock it if you forget the PIN.
 
 **Settings panel.** Accessed via a secret gesture (triple-tap the bottom-right corner, or whichever corner you choose in Settings → Dashboard). No visible settings button means no clutter on the dashboard.
@@ -195,7 +197,7 @@ Open the settings panel by **triple-tapping the bottom-right corner**. If an exi
 
 ### Idle screen
 
-Three mutually exclusive modes:
+Four mutually exclusive modes:
 
 
 | Mode       | Description                                                                |
@@ -204,6 +206,21 @@ Three mutually exclusive modes:
 | Photos     | Your own photos, picked with the system photo picker (no photo library permission needed). One photo stays up; two or more play as a slideshow with crossfades, every 10 seconds to 1 hour, optionally shuffled. Fill the screen or fit the whole photo, with an optional clock in the corner. Up to 50 photos, copied into DashPad at screen size and excluded from backups. |
 | Blank      | Pure black screen. Pair with a low idle brightness to minimise power draw. |
 | Custom URL | Loads a second URL while idle: a Home Assistant view built as a clock, weather or calendar screen, a photo frame, or any other page. The page is display-only; tapping it wakes the dashboard. If it can't load, DashPad says so and retries every 10 seconds. |
+
+#### Night screen
+
+A second idle screen that replaces the one above during set hours. It only changes what is shown
+while the dashboard is idle; it never sends the dashboard idle by itself. In Schedule mode an
+Active window that overlaps the night hours still shows the dashboard, and in Always Active mode
+the night screen is never shown.
+
+| Setting                    | Default        | Description |
+| -------------------------- | -------------- | ----------- |
+| Night Screen               | Off            | Turns the night screen on. The settings below appear once it is on. |
+| Show                       | Clock          | Clock or Blank. The clock has its own face (Dark Digital by default) and, for themed faces, its own colour theme (Night by default). Typeface and options follow the idle clock. |
+| Wake When Someone Walks Up | Off            | Camera mode only. Off: the camera stays off while the night screen is showing and only a tap wakes the dashboard. On: presence wakes it as usual. |
+| Same Hours Every Day       | On             | When on, one list of night hours applies to every day. When off, each day of the week has its own list. |
+| Night Hours                | 22:00 to 07:00 | One or more time ranges, which can span midnight, for example 09:00 to 17:00 and 21:00 to 06:00. With per-day hours, a range that spans midnight belongs to the day it is listed under, early-morning part included. |
 
 
 
@@ -215,6 +232,7 @@ Three mutually exclusive modes:
 | ----------------- | ------- | ---------------------------------------------- |
 | Active brightness | 80%     | Screen brightness when the dashboard is shown. |
 | Idle brightness   | 15%     | Screen brightness on the idle screen.          |
+| Night brightness  | 5%      | Screen brightness on the night screen. Shown once Night Screen is on. |
 
 
 ---

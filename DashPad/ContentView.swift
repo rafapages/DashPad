@@ -78,6 +78,7 @@ struct ContentView: View {
             // being backgrounded (e.g. Control Center, a call, or the user leaving Guided Access).
             applyIdleTimer(settings.preventAutoLock)
             kioskManager.evaluateSchedule()
+            kioskManager.evaluateNight()
         }
     }
 

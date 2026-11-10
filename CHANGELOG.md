@@ -9,6 +9,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Dashboard zoom is now remembered across launches instead of resetting to 100%.
 
 ### Added
+- Night screen: Settings → Idle Screen → Night Screen shows a different idle screen during hours
+  you choose, such as a dark clock or a blank screen overnight. Add as many time ranges as you
+  like, the same every day or per weekday, and ranges can span midnight. It has its own clock
+  face, colour theme and brightness (Settings → Brightness → Night). In Camera mode, Wake When
+  Someone Walks Up is off by default: the camera stays off while the night screen is showing and
+  only a tap wakes the dashboard. Off by default; it only changes which idle screen is shown and
+  never sends the dashboard idle by itself.
 - Settings → Dashboard → Settings Corner moves the triple-tap target to any corner of the screen,
   so it no longer has to block a button on the dashboard. Stays in the bottom-right by default.
 - Settings → Dashboard → Web Controls can hide the pull tab on the right edge of the screen, and

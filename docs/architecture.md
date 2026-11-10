@@ -23,7 +23,7 @@ DashPad/
 ├── DashPadApp.swift          @main entry point; injects AppSettings, KioskManager and WebViewController
 │
 ├── AppSettings.swift         All user configuration; UserDefaults persistence; Keychain for PIN
-├── KioskManager.swift        Central coordinator; presence state machine; display transitions
+├── KioskManager.swift        Central coordinator; presence state machine; display transitions; night hours
 ├── ContentView.swift         Root view; switches between KioskBrowserView and IdleView
 │
 ├── Kiosk/
@@ -36,7 +36,7 @@ DashPad/
 │   └── PresenceDebugViewModel.swift  Observable state for the debug UI
 │
 ├── Idle/
-│   ├── IdleView.swift        Switches between clock, photos, blank, and custom URL modes
+│   ├── IdleView.swift        Switches between clock, photos, blank, and custom URL modes, or the night screen
 │   ├── ClockView.swift       Idle clock (TimelineView); ClockFaceView switches on clockStyle; Dark Digital/Analog faces
 │   ├── Clocks/
 │   │   ├── ClockTheme.swift      ClockTheme and each face's hand-tuned colour table
@@ -68,7 +68,7 @@ Three objects are injected at the root in `DashPadApp.swift` and available throu
 
 **`AppSettings`** - an `ObservableObject`. Every setting is an `@Published` stored property with a `didSet` observer that writes to `UserDefaults`. The exit PIN is the only exception: it is written to and read from Keychain via `KeychainHelper`. Views bind to `AppSettings` properties through the projected `$settings` wrapper.
 
-**`KioskManager`** - an `ObservableObject`. Views read its published state (`displayState`, `showingPINEntry`, `showingSettings`) to decide what to render. Views do not write to `KioskManager` directly except via its public methods (`handleSecretTap()`, `validatePIN()`, `activateKioskMode()`, etc.).
+**`KioskManager`** - an `ObservableObject`. Views read its published state (`displayState`, `isNightActive`, `showingPINEntry`, `showingSettings`) to decide what to render. Views do not write to `KioskManager` directly except via its public methods (`handleSecretTap()`, `validatePIN()`, `activateKioskMode()`, etc.).
 
 Not every property on `KioskManager` is `@Published`. `ObservableObject` invalidates every observing view on any published change, so state that churns but is never rendered is deliberately left unpublished: `lastLuminance` is rewritten on every camera sample, and `manualWakeUntil` is internal to the schedule state machine. The debug overlay reads its own copy of the luminance from `PresenceDebugViewModel` rather than from `KioskManager`.
 
@@ -86,6 +86,7 @@ DashPadApp
     ├── KioskBrowserView          (when displayState == .active)
     │   └── WebViewRepresentable  (UIViewRepresentable wrapping WKWebView)
     ├── IdleView                  (when displayState == .idle)
+    │   ├── [night screen]        (isNightActive: ClockView(isNight: true) or Color.black, replacing the rest)
     │   ├── ClockView             (idleScreenType == .clock, or .photos with no photos yet)
     │   ├── PhotoSlideshowView    (idleScreenType == .photos)
     │   │   └── SlideshowUIView   (UIView: crossfade and slow zoom/pan in Core Animation)
@@ -145,6 +146,38 @@ Every state transition calls `cancelAllTimers()` first, then starts only the tim
 
 See [presence-pipeline.md](presence-pipeline.md) for the full camera state machine and schedule data model documentation.
 
+### Night screen
+
+The night screen is a second idle screen, not a third display state. `displayState` stays
+`active` / `idle`; `KioskManager.isNightActive` says which idle screen and which brightness apply
+once the display is idle. It is true while `AppSettings.nightScreenEnabled` is on and the current
+time falls inside `AppSettings.nightSchedule`, a `WeeklySchedule` like Schedule mode's, read with
+the shared `WeeklySchedule.isActive(at:)`. It never sends the display idle by itself, so in
+Schedule mode an Active window still wins, and in Always Active mode it has no visible effect.
+
+`evaluateNight()` recomputes it every 30 seconds, whenever any setting changes (a Combine
+subscription to `AppSettings.objectWillChange`, the one place `KioskManager` observes settings
+rather than reading them at the moment of use), when the settings sheet or PIN entry is dismissed,
+and on `applicationDidBecomeActive`. When the value changes it animates `isNightActive` and
+re-applies brightness through `applyBrightness()`, which picks `activeBrightness`,
+`idleBrightness` or `nightBrightness` from the display state and `isNightActive`.
+
+In Camera mode, night hours with `nightWakeOnPresence` off set `presenceWakeSuppressed`:
+`enterIdle()` then schedules no sample timer, so the camera is off for as long as the night
+screen is showing, and a sample already in flight when the night hours begin is discarded. A tap
+still goes through `handleScreenTap()` to `enterActive()`, and the usual recheck and countdown
+bring the display back to idle. When the night hours end, `evaluateNight()` re-enters idle to
+restart sampling.
+
+`IdleView` shows the night screen in place of the idle screen while `isNightActive` is true:
+`Color.black`, or `ClockView(isNight: true)`, which draws `nightClockStyle` with
+`AppSettings.nightClockAppearance` (the idle clock's typeface and options, with the night face in
+`nightClockTheme`).
+
+In Settings, the night hours and Schedule mode's Active windows share one editor:
+`weeklyWindowSections(_:toggleTitle:sameDayTitle:)` takes a `ScheduleTarget` and edits whichever
+`WeeklySchedule` it names.
+
 ### 2. PIN and settings access
 
 The secret gesture flow:
@@ -160,7 +193,7 @@ Biometric recovery is available via `recoverWithBiometrics()`, which uses `LACon
 
 ### 3. Display and brightness
 
-`transitionDisplay(to:)` is the single place where `displayState` changes. It applies a SwiftUI animation and sets `UIScreen` brightness via the active `UIWindowScene`. Active and idle brightness values are read from `AppSettings` at transition time.
+`transitionDisplay(to:)` is the single place where `displayState` changes. It applies a SwiftUI animation and calls `applyBrightness()`, which sets `UIScreen` brightness via the active `UIWindowScene`. Active, idle and night brightness values are read from `AppSettings` at that moment. Brightness is also re-applied when the settings sheet or PIN entry is dismissed, so a changed slider takes effect straight away.
 
 The system Auto-Lock is kept out of the way separately: `ContentView` sets `UIApplication.shared.isIdleTimerDisabled` from `AppSettings.preventAutoLock` (on by default) on appear, whenever the setting changes, and again on every `didBecomeActive`. Without it the iPad would sleep and lock after the Auto-Lock interval regardless of presence or schedule; dimming on idle is DashPad's job, not the system's.
 

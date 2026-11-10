@@ -8,10 +8,12 @@ import SwiftUI
 
 struct ClockView: View {
     @EnvironmentObject var settings: AppSettings
+    /// The night screen has a face and theme of its own; the idle screen uses the main ones.
+    var isNight = false
 
     var body: some View {
-        let style = settings.clockStyle
-        let appearance = settings.clockAppearance
+        let style = isNight ? settings.nightClockStyle : settings.clockStyle
+        let appearance = isNight ? settings.nightClockAppearance : settings.clockAppearance
 
         // Redraw only as often as the face changes: a minute-only face redrawing every second
         // would do 59 invisible redraws a minute for hours on end. `.everyMinute` fires on the
@@ -55,6 +57,13 @@ struct ClockAppearance: Equatable {
 extension AppSettings {
     var clockAppearance: ClockAppearance {
         ClockAppearance(themes: clockThemes, typeface: clockTypeface, options: clockOptions)
+    }
+
+    /// The idle clock's typeface and options, with the night face drawn in the night theme.
+    var nightClockAppearance: ClockAppearance {
+        var appearance = clockAppearance
+        appearance.themes[nightClockStyle] = nightClockTheme
+        return appearance
     }
 }
 

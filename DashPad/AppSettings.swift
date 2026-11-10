@@ -36,6 +36,14 @@ class AppSettings: ObservableObject {
     @Published var favouriteURLs: [String] { didSet { save(favouriteURLs, key: .favouriteURLs) } }
     @Published var weeklySchedule: WeeklySchedule { didSet { saveCodable(weeklySchedule, key: .weeklySchedule) } }
     @Published var manualWakeTimeout: Double { didSet { save(manualWakeTimeout, key: .manualWakeTimeout) } }
+    // Night screen: a second idle screen that replaces the usual one during `nightSchedule`.
+    @Published var nightScreenEnabled: Bool { didSet { save(nightScreenEnabled, key: .nightScreenEnabled) } }
+    @Published var nightSchedule: WeeklySchedule { didSet { saveCodable(nightSchedule, key: .nightSchedule) } }
+    @Published var nightScreenType: NightScreenType { didSet { save(nightScreenType.rawValue, key: .nightScreenType) } }
+    @Published var nightClockStyle: ClockStyle { didSet { save(nightClockStyle.rawValue, key: .nightClockStyle) } }
+    @Published var nightClockTheme: ClockTheme { didSet { save(nightClockTheme.rawValue, key: .nightClockTheme) } }
+    @Published var nightBrightness: Double { didSet { save(nightBrightness, key: .nightBrightness) } }
+    @Published var nightWakeOnPresence: Bool { didSet { save(nightWakeOnPresence, key: .nightWakeOnPresence) } }
     @Published var hideStatusBar: Bool { didSet { save(hideStatusBar, key: .hideStatusBar) } }
     @Published var preventAutoLock: Bool { didSet { save(preventAutoLock, key: .preventAutoLock) } }
     @Published var settingsCorner: SettingsCorner { didSet { save(settingsCorner.rawValue, key: .settingsCorner) } }
@@ -94,6 +102,13 @@ class AppSettings: ObservableObject {
         favouriteURLs = ud.stringArray(forKey: Key.favouriteURLs.rawValue) ?? []
         weeklySchedule = Self.decodeCodable(WeeklySchedule.self, forKey: Key.weeklySchedule.rawValue) ?? WeeklySchedule()
         manualWakeTimeout = ud.optionalDouble(forKey: Key.manualWakeTimeout.rawValue) ?? 120.0
+        nightScreenEnabled = ud.object(forKey: Key.nightScreenEnabled.rawValue) as? Bool ?? false
+        nightSchedule = Self.decodeCodable(WeeklySchedule.self, forKey: Key.nightSchedule.rawValue) ?? .defaultNight
+        nightScreenType = NightScreenType(rawValue: ud.string(forKey: Key.nightScreenType.rawValue) ?? "") ?? .clock
+        nightClockStyle = ClockStyle(rawValue: ud.string(forKey: Key.nightClockStyle.rawValue) ?? "") ?? .digital
+        nightClockTheme = ClockTheme(rawValue: ud.string(forKey: Key.nightClockTheme.rawValue) ?? "") ?? .night
+        nightBrightness = ud.optionalDouble(forKey: Key.nightBrightness.rawValue) ?? 0.05
+        nightWakeOnPresence = ud.object(forKey: Key.nightWakeOnPresence.rawValue) as? Bool ?? false
         hideStatusBar = ud.object(forKey: Key.hideStatusBar.rawValue) as? Bool ?? true
         preventAutoLock = ud.object(forKey: Key.preventAutoLock.rawValue) as? Bool ?? true
         settingsCorner = SettingsCorner(rawValue: ud.string(forKey: Key.settingsCorner.rawValue) ?? "") ?? .bottomRight
@@ -127,6 +142,8 @@ class AppSettings: ObservableObject {
         case idlePhotos, photoOptions
         case presenceEnabled // legacy key - do not use, kept for migration reads only
         case presenceMode, weeklySchedule, manualWakeTimeout
+        case nightScreenEnabled, nightSchedule, nightScreenType, nightClockStyle, nightClockTheme
+        case nightBrightness, nightWakeOnPresence
         case idleBrightness, activeBrightness, cameraSampleRate, nightSampleRate
         case presenceRecheckInterval, darkLuminanceThreshold
         case allowedDomains, customCSS, customJS, favouriteURLs, detectionMode
@@ -186,6 +203,36 @@ struct WeeklySchedule: Codable, Equatable {
     /// Index 0 = Sunday … 6 = Saturday, matching `Calendar.component(.weekday) - 1`.
     /// When `sameEveryDay` is true only `windows[0]` is evaluated.
     var windows: [[ScheduleWindow]] = Array(repeating: [], count: 7)
+
+    /// Whether `date` falls inside one of the windows that apply on its weekday. A window that
+    /// spans midnight belongs to the day it is listed under, early-morning part included.
+    func isActive(at date: Date, calendar: Calendar = .current) -> Bool {
+        let minuteOfDay = calendar.component(.hour, from: date) * 60
+                        + calendar.component(.minute, from: date)
+        let day = sameEveryDay ? 0 : calendar.component(.weekday, from: date) - 1
+        guard windows.indices.contains(day) else { return false }
+        return windows[day].contains { $0.isActive(at: minuteOfDay) }
+    }
+
+    /// What the night screen starts with: 22:00 to 07:00, every day.
+    static var defaultNight: WeeklySchedule {
+        var schedule = WeeklySchedule()
+        schedule.windows[0] = [ScheduleWindow(startMinute: 22 * 60, endMinute: 7 * 60)]
+        return schedule
+    }
+}
+
+/// What the night screen shows. Deliberately fewer choices than the idle screen: at night the
+/// point is to give off little light.
+enum NightScreenType: String, CaseIterable {
+    case clock, blank
+
+    var displayName: String {
+        switch self {
+        case .clock: "Clock"
+        case .blank: "Blank"
+        }
+    }
 }
 
 enum IdleScreenType: String, CaseIterable {
