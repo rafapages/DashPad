@@ -122,7 +122,7 @@ git clone https://github.com/rafapages/DashPad.git
 3. Set a unique bundle identifier. The default `com.example.dashpad` is a placeholder and will collide; change it to something of your own (e.g. `com.yourname.dashpad`).
 4. Build and run on a physical iPad (`⌘R`). A camera and Guided Access need real hardware.
 
-On first launch, an onboarding flow walks you through setup: setting your Home URL, granting camera permission, choosing an idle screen, and optionally setting a PIN. No Home Assistant server? Pick **Just looking? Try the demo** to load the public demo at `https://demo.home-assistant.io` (also available in Settings → Dashboard).
+On first launch, a full-screen setup flow walks you through it, showing each step on a small iPad beside the choices: granting camera permission (with a live try-out of presence detection), setting your Home URL, choosing an idle screen, and optionally setting a PIN. If you choose Home Assistant, a final step offers to turn on the [Home Assistant link](docs/home-assistant-link.md). No Home Assistant server? Pick **Just looking? Try the demo** to load the public demo at `https://demo.home-assistant.io` (also available in Settings → Dashboard).
 
 ### First-run checklist
 
@@ -267,7 +267,7 @@ DashPad/
 ├── Presence/             Camera capture, Vision requests, presence debug overlay
 ├── Idle/                 Idle screen views (clock, photos, blank, custom URL)
 ├── HomeAssistant/        Optional Home Assistant link: an ESPHome-compatible device server
-├── Onboarding/           First-run onboarding flow and animated backgrounds
+├── Onboarding/           Setup flow: steps, per-step stages, live presence try-out
 └── Settings/             SwiftUI settings panel, PIN entry and setup
 ```
 

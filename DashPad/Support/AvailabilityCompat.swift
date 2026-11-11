@@ -87,51 +87,6 @@ struct CentredSheetSizing: PresentationSizing {
     }
 }
 
-// MARK: - Container-relative sizing
-
-/// Carries a container's measured height down to descendants that need to size themselves
-/// against it on iOS 16. Unused on iOS 17+, where `containerRelativeFrame` does this natively.
-struct ContainerHeightKey: PreferenceKey {
-    static var defaultValue: CGFloat = 0
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-        value = max(value, nextValue())
-    }
-}
-
-extension View {
-    /// Publishes this view's height under `ContainerHeightKey` so a descendant can size itself
-    /// relative to it via `relativeContainerHeight(_:measuredContainerHeight:)` on iOS 16.
-    /// No-ops on iOS 17+, where `containerRelativeFrame` measures its own container and the
-    /// GeometryReader would be laying out and publishing a value nothing reads.
-    @ViewBuilder
-    func measureContainerHeight() -> some View {
-        if #available(iOS 17.0, *) {
-            self
-        } else {
-            background(
-                GeometryReader { geo in
-                    Color.clear.preference(key: ContainerHeightKey.self, value: geo.size.height)
-                }
-            )
-        }
-    }
-
-    /// Sizes the view to `fraction` of its scroll container's height.
-    /// `containerRelativeFrame(_:alignment:_:)` is iOS 17+; on iOS 16 the caller passes the
-    /// height it measured with `measureContainerHeight()`. Before the first measurement lands
-    /// the view keeps its natural size rather than collapsing to zero.
-    @ViewBuilder
-    func relativeContainerHeight(_ fraction: CGFloat, measuredContainerHeight: CGFloat) -> some View {
-        if #available(iOS 17.0, *) {
-            containerRelativeFrame(.vertical) { height, _ in height * fraction }
-        } else if measuredContainerHeight > 0 {
-            frame(height: measuredContainerHeight * fraction)
-        } else {
-            self
-        }
-    }
-}
-
 // MARK: - ContentUnavailableView
 
 /// Stand-in for `ContentUnavailableView`, which is iOS 17+. The fallback reproduces the

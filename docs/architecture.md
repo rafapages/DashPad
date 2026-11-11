@@ -31,7 +31,8 @@ DashPad/
 │   └── WebViewController.swift  Observable handle on the WebView (reload, home, zoom, load failure)
 │
 ├── Presence/
-│   ├── PresenceDetector.swift   AVCaptureSession; luminance check; Vision request; CaptureResult
+│   ├── PresenceDetector.swift   AVCaptureSession; luminance check; Vision request; CaptureResult;
+│   │                            FrameLuminance and CameraRotation, shared with the setup flow's try-out
 │   ├── PresenceDebugView.swift  Debug overlay: last frame, bounding boxes, event log
 │   └── PresenceDebugViewModel.swift  Observable state for the debug UI
 │
@@ -59,6 +60,14 @@ DashPad/
 │   ├── ESPHomeServer.swift      ESPHome native API device: listener, Bonjour, framing, messages
 │   ├── NoiseHandshake.swift     Noise_NNpsk0_25519_ChaChaPoly_SHA256 on CryptoKit
 │   └── ProtoWire.swift          Minimal Protocol Buffers writer and reader
+│
+├── Onboarding/               (the setup flow; first run, and Settings → Setup assistant)
+│   ├── OnboardingView.swift        Steps, what each one saves, and the two-part layout
+│   ├── OnboardingComponents.swift  Text column pieces: headline, fact tiles, option cards, buttons, pills
+│   ├── OnboardingStage.swift       The picture for each step: device frame, stand-in dashboard, per-step stages
+│   ├── PresenceTryOut.swift        Live camera demo: continuous session, throttled Vision check, preview
+│   ├── LoopingVideoView.swift      Silent looping AVPlayer for the presence step's clip (dashpad_v2.mov)
+│   └── AnimatedBlobGradient.swift  The warm animated background behind the stage
 │
 └── Settings/
     ├── SettingsView.swift    NavigationSplitView settings panel; all settings sections
@@ -109,7 +118,7 @@ ContentView.sheet → SettingsView  (when showingSettings == true)
 
 `ContentView` is deliberately thin. It contains no logic beyond reading `KioskManager.displayState` and rendering the appropriate branch. The corner tap target is `CornerTapTarget`, an invisible 88×88 pt `UIView` (via `UIViewRepresentable`) sitting in the corner set by `AppSettings.settingsCorner` (bottom-right by default), ignoring the safe area. A `UITapGestureRecognizer` with `numberOfTapsRequired = 3` calls `KioskManager.handleSecretTap()`. It is UIKit rather than a SwiftUI `onTapGesture(count: 3)` on `Color.clear` because that SwiftUI version never fired over the `WKWebView` on iPadOS 15 (issue #7); a real `UIView` is hit-tested the same way on every release.
 
-Both top-level sheets - `SettingsView` and `OnboardingView` - declare their size explicitly with
+The settings sheet - `SettingsView` - declares its size explicitly with
 `centredSheetSizing()` (`CentredSheetSizing`, an 800x640 `PresentationSizing`, on iOS 18+) rather
 than taking whatever the current release defaults to. Sheet sizing has moved twice: the narrow,
 centred *form* sheet became the iPad default in iPadOS 18, iPadOS 27 extended it to sheets that
@@ -117,8 +126,36 @@ used to come up page-sized, and `.page` now fills the screen. A form sheet is na
 report a compact horizontal size class, which collapses `SettingsView`'s `NavigationSplitView`
 into a single stacked column; a full-screen sheet is far more than a settings panel needs. 800pt
 keeps the sidebar beside the detail pane and matches the panel the app presented before iPadOS 27.
-For the same reason neither sheet uses `presentationDetents`: detents are a compact-height
+For the same reason it does not use `presentationDetents`: detents are a compact-height
 mechanism, and on iPad they now shrink the sheet instead of being ignored.
+
+### Setup flow
+
+`OnboardingView` is presented as a `fullScreenCover`, by `ContentView` on a first run and by
+`SettingsView` for Settings → Setup assistant (`isRerun`). It is always dark. Each step is two
+parts: a text column with the choices, and a stage that shows the step on a small iPad. In
+landscape they sit side by side; in portrait the stage goes on top. The switch is one
+`GeometryReader` at the root, because `ViewThatFits` is iOS 16+ and the app deploys to iOS 15.
+
+The steps are a derived list rather than a count, because two are conditional:
+
+| Step | Shown when | Stage |
+| --- | --- | --- |
+| Welcome | Always | Clock and dashboard crossfading |
+| Presence | Always | `dashpad_v2.mov` on a loop (`LoopingVideoView`) |
+| Presence try-out | First run, camera allowed, Automatic mode | Live camera preview (`PresenceTryOut.swift`) |
+| Dashboard | Always | Preview of the chosen option |
+| Idle screen | Always | The real `ClockFaceView`, the first chosen photo, black, or a stand-in page |
+| PIN lock | Always | A sketch of the PIN pad |
+| Home Assistant link | The dashboard choice was "I have Home Assistant at home" | The iPad as a Home Assistant device |
+| Getting back to Settings | Always | Triple-tap corner and the pull tab |
+
+The try-out runs its own continuous `AVCaptureSession` (`TryOutCamera`), separate from
+`PresenceDetector`, and is the only place the app displays the camera image. It is skipped on a
+re-run, where the real presence pipeline is already sampling and two sessions would compete for
+the camera. The Home Assistant step only writes `homeAssistantLinkEnabled`; on a first run
+`HomeAssistantLink` starts after the cover closes, so the Local Network prompt cannot appear over
+the setup.
 
 ---
 

@@ -56,11 +56,13 @@ struct ContentView: View {
         .sheet(isPresented: $kioskManager.showingSettings) {
             SettingsView()
         }
-        .sheet(isPresented: $showingOnboarding) {
+        // A cover rather than a sheet: the setup flow shows each step beside a live picture of
+        // it, which needs the whole screen, and it was never dismissible by swipe anyway.
+        .fullScreenCover(isPresented: $showingOnboarding) {
             OnboardingView(onComplete: {
                 hasCompletedOnboarding = true
                 // Deferred from onAppear: the presence mode the user just chose is now stored,
-                // and there is no longer a sheet for the camera dialog to appear behind.
+                // and the setup flow is no longer there for the camera dialog to appear behind.
                 kioskManager.start(settings: settings)
                 startHomeAssistantLink()
             })

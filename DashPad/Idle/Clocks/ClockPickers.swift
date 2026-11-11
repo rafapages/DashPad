@@ -16,6 +16,8 @@ struct ClockStylePicker: View {
     /// Leading and trailing room inside the scroll view, so the first and last thumbnails line
     /// up with the content around the row while the rest can scroll edge to edge.
     var edgeInset: CGFloat = 20
+    /// The ring around the chosen face. The setup flow passes its own brand colour.
+    var selectionColor: Color = .accentColor
 
     var body: some View {
         ScrollViewReader { proxy in
@@ -54,7 +56,7 @@ struct ClockStylePicker: View {
                 .padding(3)
                 .overlay(
                     RoundedRectangle(cornerRadius: 13, style: .continuous)
-                        .strokeBorder(isSelected ? Color.accentColor : .clear, lineWidth: 2.5)
+                        .strokeBorder(isSelected ? selectionColor : .clear, lineWidth: 2.5)
                 )
 
             Text(style.displayName)

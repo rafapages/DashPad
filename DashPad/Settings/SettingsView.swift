@@ -120,7 +120,7 @@ struct SettingsView: View {
         splitView
             .clearNavigationSplitViewBackground()
             .centredSheetSizing()
-            .sheet(isPresented: $showingSetupAssistant) {
+            .fullScreenCover(isPresented: $showingSetupAssistant) {
                 OnboardingView(onComplete: {
                     kioskManager.dismissSettings()
                 }, isRerun: true)

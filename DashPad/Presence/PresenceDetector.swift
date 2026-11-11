@@ -114,17 +114,8 @@ class PresenceDetector: NSObject {
         }
     }
 
-    /// `videoRotationAngle` is iOS 17+; older releases use the `videoOrientation` enum it
-    /// replaced. The two paths express the same rotations - see `videoOrientation()`.
     private func applyRotation(to connection: AVCaptureConnection) {
-        if #available(iOS 17.0, *) {
-            let angle = videoRotationAngle()
-            if connection.isVideoRotationAngleSupported(angle) {
-                connection.videoRotationAngle = angle
-            }
-        } else if connection.isVideoOrientationSupported {
-            connection.videoOrientation = videoOrientation()
-        }
+        CameraRotation.apply(currentInterfaceOrientation(), to: connection, mirrored: true)
     }
 
     private func currentInterfaceOrientation() -> UIInterfaceOrientation {
@@ -143,30 +134,6 @@ class PresenceDetector: NSObject {
         return orientation
     }
 
-    @available(iOS 17.0, *)
-    private func videoRotationAngle() -> CGFloat {
-        switch currentInterfaceOrientation() {
-        case .portrait:           return 90
-        case .portraitUpsideDown: return 270
-        case .landscapeRight:     return 180
-        case .landscapeLeft:      return 0
-        default:                  return 90
-        }
-    }
-
-    /// Pre-iOS 17 equivalent of `videoRotationAngle()`. AVFoundation's landscape cases are
-    /// inverted with respect to UIKit's, so left maps to right and vice versa; the resulting
-    /// rotations match the angles above (portrait 90°, upside down 270°, UIKit-left 0°).
-    private func videoOrientation() -> AVCaptureVideoOrientation {
-        switch currentInterfaceOrientation() {
-        case .portrait:           return .portrait
-        case .portraitUpsideDown: return .portraitUpsideDown
-        case .landscapeRight:     return .landscapeLeft
-        case .landscapeLeft:      return .landscapeRight
-        default:                  return .portrait
-        }
-    }
-
     // MARK: - Detection
 
     private func detectPresence(
@@ -183,10 +150,55 @@ class PresenceDetector: NSObject {
         // Buffer is pre-rotated and mirrored via the connection settings.
         try? VNImageRequestHandler(cvPixelBuffer: pixelBuffer).perform([request])
     }
+}
 
-    // MARK: - Luminance
+// MARK: - AVCaptureVideoDataOutputSampleBufferDelegate
 
-    private func averageLuminance(from pixelBuffer: CVPixelBuffer) -> Double {
+extension PresenceDetector: AVCaptureVideoDataOutputSampleBufferDelegate {
+    func captureOutput(
+        _ output: AVCaptureOutput,
+        didOutput sampleBuffer: CMSampleBuffer,
+        from connection: AVCaptureConnection
+    ) {
+        guard readyToCapture, !didCapture,
+              let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
+
+        readyToCapture = false
+        didCapture = true
+
+        // Tear down the session - LED off after this returns.
+        let session = pendingSession
+        pendingSession = nil
+        sessionQueue.async { session?.stopRunning() }
+
+        let lum = FrameLuminance.average(of: pixelBuffer)
+        let ciImage = CIImage(cvPixelBuffer: pixelBuffer)
+        let debugImage = ciContext.createCGImage(ciImage, from: ciImage.extent)
+            .map { UIImage(cgImage: $0) }
+
+        guard lum >= darkLuminanceThreshold else {
+            DispatchQueue.main.async { [weak self] in
+                self?.captureInProgress = false
+                self?.onCaptureResult?(CaptureResult(luminance: lum, observations: [], debugImage: debugImage))
+            }
+            return
+        }
+
+        // Vision is synchronous - runs on sessionQueue while pixelBuffer is valid.
+        detectPresence(in: pixelBuffer) { [weak self] observations in
+            DispatchQueue.main.async {
+                self?.captureInProgress = false
+                self?.onCaptureResult?(CaptureResult(luminance: lum, observations: observations, debugImage: debugImage))
+            }
+        }
+    }
+}
+
+// MARK: - Shared camera helpers
+
+/// Average brightness of a BGRA frame, 0 to 255, sampled every eighth pixel.
+nonisolated enum FrameLuminance {
+    static func average(of pixelBuffer: CVPixelBuffer) -> Double {
         CVPixelBufferLockBaseAddress(pixelBuffer, .readOnly)
         defer { CVPixelBufferUnlockBaseAddress(pixelBuffer, .readOnly) }
 
@@ -212,44 +224,41 @@ class PresenceDetector: NSObject {
     }
 }
 
-// MARK: - AVCaptureVideoDataOutputSampleBufferDelegate
-
-extension PresenceDetector: AVCaptureVideoDataOutputSampleBufferDelegate {
-    func captureOutput(
-        _ output: AVCaptureOutput,
-        didOutput sampleBuffer: CMSampleBuffer,
-        from connection: AVCaptureConnection
-    ) {
-        guard readyToCapture, !didCapture,
-              let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
-
-        readyToCapture = false
-        didCapture = true
-
-        // Tear down the session - LED off after this returns.
-        let session = pendingSession
-        pendingSession = nil
-        sessionQueue.async { session?.stopRunning() }
-
-        let lum = averageLuminance(from: pixelBuffer)
-        let ciImage = CIImage(cvPixelBuffer: pixelBuffer)
-        let debugImage = ciContext.createCGImage(ciImage, from: ciImage.extent)
-            .map { UIImage(cgImage: $0) }
-
-        guard lum >= darkLuminanceThreshold else {
-            DispatchQueue.main.async { [weak self] in
-                self?.captureInProgress = false
-                self?.onCaptureResult?(CaptureResult(luminance: lum, observations: [], debugImage: debugImage))
+/// Turns a capture connection to match the interface, for the front camera.
+///
+/// `videoRotationAngle` is iOS 17+; older releases use the `videoOrientation` enum it replaced.
+/// A mirrored video data output (what the presence pipeline analyses) needs the two landscape
+/// cases swapped with respect to UIKit's; a preview layer, which mirrors the front camera
+/// itself, takes them as they are.
+nonisolated enum CameraRotation {
+    static func apply(_ orientation: UIInterfaceOrientation, to connection: AVCaptureConnection, mirrored: Bool) {
+        if #available(iOS 17.0, *) {
+            let angle = angle(for: orientation, mirrored: mirrored)
+            if connection.isVideoRotationAngleSupported(angle) {
+                connection.videoRotationAngle = angle
             }
-            return
+        } else if connection.isVideoOrientationSupported {
+            connection.videoOrientation = videoOrientation(for: orientation, mirrored: mirrored)
         }
+    }
 
-        // Vision is synchronous - runs on sessionQueue while pixelBuffer is valid.
-        detectPresence(in: pixelBuffer) { [weak self] observations in
-            DispatchQueue.main.async {
-                self?.captureInProgress = false
-                self?.onCaptureResult?(CaptureResult(luminance: lum, observations: observations, debugImage: debugImage))
-            }
+    private static func angle(for orientation: UIInterfaceOrientation, mirrored: Bool) -> CGFloat {
+        switch orientation {
+        case .portrait:           return 90
+        case .portraitUpsideDown: return 270
+        case .landscapeRight:     return mirrored ? 180 : 0
+        case .landscapeLeft:      return mirrored ? 0 : 180
+        default:                  return 90
+        }
+    }
+
+    private static func videoOrientation(for orientation: UIInterfaceOrientation, mirrored: Bool) -> AVCaptureVideoOrientation {
+        switch orientation {
+        case .portrait:           return .portrait
+        case .portraitUpsideDown: return .portraitUpsideDown
+        case .landscapeRight:     return mirrored ? .landscapeLeft : .landscapeRight
+        case .landscapeLeft:      return mirrored ? .landscapeRight : .landscapeLeft
+        default:                  return .portrait
         }
     }
 }
