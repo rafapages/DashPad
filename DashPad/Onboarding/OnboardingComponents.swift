@@ -66,7 +66,7 @@ struct OnboardingEyebrow: View {
 
 // MARK: - Facts
 
-/// The gradient dot that marks a claim, as on the marketing site's privacy tiles.
+/// The gradient dot that marks a claim.
 struct BrandDot: View {
     var body: some View {
         Circle()
@@ -77,18 +77,15 @@ struct BrandDot: View {
     }
 }
 
-/// A fact in a tile, dot above the text. Laid out two to a row.
+/// A fact in a tile. Laid out two to a row.
 struct FactTile: View {
     let text: String
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            BrandDot().padding(4)
-            Text(text)
-                .font(.subheadline)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-        .padding(14)
+        Text(text)
+            .font(.subheadline)
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(14)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(.secondary.opacity(0.16), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
     }

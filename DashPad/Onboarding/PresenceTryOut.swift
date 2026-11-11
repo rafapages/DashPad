@@ -107,9 +107,11 @@ nonisolated final class TryOutCamera: NSObject, AVCaptureVideoDataOutputSampleBu
         }
     }
 
-    /// Called by the preview whenever the interface turns.
+    /// Called by the preview whenever it lays out. Only an actual turn reaches the connection:
+    /// re-applying a rotation to a running output stalls the picture.
     func setOrientation(_ orientation: UIInterfaceOrientation) {
         queue.async {
+            guard orientation != self.orientation else { return }
             self.orientation = orientation
             self.applyOrientation()
         }
@@ -144,7 +146,7 @@ nonisolated final class TryOutCamera: NSObject, AVCaptureVideoDataOutputSampleBu
     /// Same rotation as the real pipeline, so Vision sees people upright.
     private func applyOrientation() {
         guard let connection = output.connection(with: .video) else { return }
-        CameraRotation.apply(orientation, to: connection, mirrored: true)
+        CameraRotation.apply(orientation, to: connection)
     }
 
     func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
@@ -188,6 +190,9 @@ final class CameraPreviewView: UIView {
     override class var layerClass: AnyClass { AVCaptureVideoPreviewLayer.self }
 
     var camera: TryOutCamera?
+    /// What the preview's connection was last turned to. Layout runs on every SwiftUI update,
+    /// and the rotation should only be set when it changes.
+    private var appliedOrientation: UIInterfaceOrientation?
 
     var previewLayer: AVCaptureVideoPreviewLayer {
         // The layer class is fixed above, so this cannot fail.
@@ -197,8 +202,9 @@ final class CameraPreviewView: UIView {
     override func layoutSubviews() {
         super.layoutSubviews()
         guard let orientation = window?.windowScene?.interfaceOrientation else { return }
-        if let connection = previewLayer.connection {
-            CameraRotation.apply(orientation, to: connection, mirrored: false)
+        if let connection = previewLayer.connection, appliedOrientation != orientation {
+            CameraRotation.apply(orientation, to: connection)
+            appliedOrientation = orientation
         }
         camera?.setOrientation(orientation)
     }

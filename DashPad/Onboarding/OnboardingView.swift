@@ -117,6 +117,15 @@ struct OnboardingView: View {
         .sheet(isPresented: $showingPINSetup) {
             PINSetupView(savedPIN: $settings.exitPIN, onSet: { didSetPIN = true })
         }
+        // The try-out's camera follows the step, not the stage view, which is rebuilt on rotation.
+        .onChangeCompat(of: step) { newStep in
+            if newStep == .presenceTryOut {
+                tryOut.start(detectionMode: settings.detectionMode, darkLuminanceThreshold: settings.darkLuminanceThreshold)
+            } else {
+                tryOut.stop()
+            }
+        }
+        .onDisappear { tryOut.stop() }
         .onChangeCompat(of: showingPINSetup) { isShowing in
             // Advancing on dismissal rather than from the callback keeps the step transition
             // from animating underneath the sheet on its way out.
@@ -245,7 +254,7 @@ struct OnboardingView: View {
             stageContent(isCompact: isCompact)
                 .id(step)
                 .transition(.opacity)
-                .padding(isCompact ? 20 : 32)
+                .padding(step == .presence && PresenceStage.hasVideo ? 0 : isCompact ? 20 : 32)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(OnboardingPalette.stageBase)
@@ -259,9 +268,9 @@ struct OnboardingView: View {
         case .welcome:
             WelcomeStage()
         case .presence:
-            PresenceStage(isCompact: isCompact)
+            PresenceStage()
         case .presenceTryOut:
-            PresenceTryOutStage(model: tryOut)
+            PresenceTryOutStage(model: tryOut, isCompact: isCompact)
         case .dashboard:
             DashboardStage(choice: dashboardChoice, address: urlText)
         case .idle:
@@ -287,7 +296,17 @@ struct OnboardingView: View {
         case .welcome:
             OnboardingButton(title: "Get started") { advance(from: .welcome) }
         case .presence:
-            OnboardingButton(title: "Continue", action: continueFromPresenceStep)
+            if offersPresenceChoice {
+                HStack(spacing: 10) {
+                    OnboardingButton(title: "Keep it always on", isProminent: false) {
+                        applyPresenceMode(.alwaysActive)
+                        advance(from: .presence)
+                    }
+                    OnboardingButton(title: "Use the camera", action: continueFromPresenceStep)
+                }
+            } else {
+                OnboardingButton(title: "Continue", action: continueFromPresenceStep)
+            }
         case .presenceTryOut:
             OnboardingButton(title: "Continue") { advance(from: .presenceTryOut) }
         case .dashboard:
@@ -381,8 +400,20 @@ struct OnboardingView: View {
             fallBackIfCameraModeUnusable()
             advance(from: .presence)
         default:
-            // Already authorized: nothing to ask, and the mode is whatever the user chose.
+            // Already authorized: nothing to ask. Schedule mode is left alone (see
+            // `offersPresenceChoice`); otherwise this button means "use the camera".
+            if settings.presenceMode != .schedule { applyPresenceMode(.automatic) }
             advance(from: .presence)
+        }
+    }
+
+    /// Whether the presence step offers "Keep it always on" beside "Use the camera". Not when
+    /// the camera is unavailable, where there is nothing to choose, and not in Schedule mode,
+    /// which can only have been picked deliberately in Settings and is not replaced from here.
+    private var offersPresenceChoice: Bool {
+        switch cameraStatus {
+        case .denied, .restricted: false
+        default: settings.presenceMode != .schedule
         }
     }
 
@@ -478,7 +509,7 @@ struct OnboardingView: View {
     private var welcomeStep: some View {
         VStack(alignment: .leading, spacing: 22) {
             OnboardingHeadline(plain: "Welcome to ", highlight: "DashPad.", size: 52)
-            Text("Your iPad, turned into a dedicated, always-on dashboard display.")
+            Text("The iPad dashboard that's there when you are.")
                 .font(.title2)
                 .fixedSize(horizontal: false, vertical: true)
             bodyText("Let's set it up together. Everything can be changed later in Settings.")
@@ -517,16 +548,16 @@ struct OnboardingView: View {
         switch cameraStatus {
         case .denied, .restricted:
             noteBox(icon: "exclamationmark.triangle.fill", tint: .orange, text: cameraUnavailableMessage)
-        case .authorized where settings.presenceMode != .automatic:
-            // Access is granted but the user is on a non-camera mode, so nothing here changes it -
-            // and switching it for them would undo a choice they made deliberately in Settings.
+        case _ where settings.presenceMode == .schedule:
+            // Schedule mode does not use the camera, and switching it from here would undo a
+            // choice made deliberately in Settings.
             noteBox(
                 icon: "info.circle.fill",
                 tint: OnboardingPalette.orange,
-                text: "Camera access is already allowed, but presence detection is off because Presence Mode is set to \(settings.presenceMode.displayName). Choose Automatic in Settings → Presence to turn it on."
+                text: "Presence Mode is set to Schedule, so the camera is not used. Choose Automatic in Settings → Presence to turn presence detection on."
             )
         default:
-            footerNote("Sample rate, timeout, and sensitivity are all configurable. If you decline, presence detection stays off. You can turn it on anytime in Settings → Presence.")
+            footerNote("Rather have the dashboard on all day? Choose Keep it always on. You can switch either way, and adjust sample rate, timeout and sensitivity, in Settings → Presence.")
         }
     }
 
@@ -564,7 +595,7 @@ struct OnboardingView: View {
                 checklistRow(title: "Come back", detail: "The dashboard wakes", isDone: tryOut.hasComeBack)
             }
 
-            footerNote("This is the only place DashPad ever shows the camera picture. In normal use each frame is checked on-device and immediately discarded.")
+            footerNote("The camera only stays on like this for the try-out, and this is the only place DashPad ever shows its picture. In normal use there is no running video feed: every 30 seconds or so DashPad opens the camera briefly, checks a single frame on-device and discards it.")
         }
     }
 
@@ -785,15 +816,49 @@ struct OnboardingView: View {
                         .submitLabel(.done)
                 }
             } else {
-                bodyText("Since your dashboard is Home Assistant, the iPad can join it as a device with its own entities. Automations can read its presence sensor, and wake the dashboard, send it idle or show the night screen.")
-                VStack(spacing: 10) {
-                    FactRow(text: "Nothing to install in Home Assistant. It appears as an ESPHome device.")
-                    FactRow(text: "The iPad listens; Home Assistant connects. DashPad holds no login or token.")
-                    FactRow(text: "Encrypted with a key shown in Settings. Stays on your local network.")
-                }
-                footerNote("Off unless you turn it on. Changeable anytime in Settings → Home Assistant.")
+                bodyText("The iPad can join Home Assistant as an ESPHome device. Your automations get:")
+                homeAssistantEntities
+                footerNote("Nothing to install in Home Assistant. Off unless you turn it on; change it anytime in Settings → Home Assistant.")
             }
         }
+    }
+
+    /// What the link exposes, in the words of docs/home-assistant-link.md's entity table.
+    private static let homeAssistantEntities: [(symbol: String, name: String, detail: String)] = [
+        ("person.fill", "Presence", "Whether the camera sees someone at the iPad."),
+        ("display", "Display", "What is on screen now: dashboard, idle or night."),
+        ("slider.horizontal.3", "Mode", "Choose what it shows: Auto, Dashboard, Idle or Night."),
+        ("sun.max.fill", "Room Brightness", "How bright the room looks to the camera."),
+        ("battery.100", "Battery and Charging", "Charge level, and whether it is plugged in."),
+        ("arrow.clockwise", "Reload Dashboard", "A button that reloads your home page."),
+        ("link", "Show URL", "An action that opens any page for a set time."),
+    ]
+
+    private var homeAssistantEntities: some View {
+        VStack(spacing: 0) {
+            ForEach(Array(Self.homeAssistantEntities.enumerated()), id: \.offset) { index, entity in
+                if index > 0 { Divider().padding(.leading, 54) }
+                HStack(spacing: 14) {
+                    Image(systemName: entity.symbol)
+                        .font(.body)
+                        .foregroundStyle(OnboardingPalette.orange)
+                        .frame(width: 26)
+                        .accessibilityHidden(true)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(entity.name).font(.subheadline.weight(.semibold))
+                        Text(entity.detail)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    Spacer(minLength: 0)
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 7)
+                .accessibilityElement(children: .combine)
+            }
+        }
+        .background(.secondary.opacity(0.16), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
 
     // MARK: - Getting back to Settings

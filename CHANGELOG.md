@@ -11,11 +11,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   iPad beside the choices: a short video of the dashboard waking as someone walks up, a preview of
   the dashboard you pick, the chosen clock face drawn live, the PIN pad, and where to triple-tap
   or pull the tab to get back to Settings. Works in landscape and portrait.
+- Setup: the presence step now offers "Keep it always on" beside "Use the camera", so the
+  dashboard can be left on all day without going through the camera prompt.
 - Setup: after allowing the camera on a first run, a live try-out shows the camera picture and
   flips a small iPad between dashboard and clock as you step away and come back. This is the only
   place DashPad shows the camera image.
 - Setup: choosing "I have Home Assistant at home" adds a step that turns on the Home Assistant
-  link and lists what is left to do in Home Assistant.
+  link, lists the entities Home Assistant gets, and says what is left to do there.
 
 ### Added
 - Home Assistant link: Settings → Home Assistant makes the iPad appear in Home Assistant as a

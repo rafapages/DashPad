@@ -115,7 +115,7 @@ class PresenceDetector: NSObject {
     }
 
     private func applyRotation(to connection: AVCaptureConnection) {
-        CameraRotation.apply(currentInterfaceOrientation(), to: connection, mirrored: true)
+        CameraRotation.apply(currentInterfaceOrientation(), to: connection)
     }
 
     private func currentInterfaceOrientation() -> UIInterfaceOrientation {
@@ -227,37 +227,37 @@ nonisolated enum FrameLuminance {
 /// Turns a capture connection to match the interface, for the front camera.
 ///
 /// `videoRotationAngle` is iOS 17+; older releases use the `videoOrientation` enum it replaced.
-/// A mirrored video data output (what the presence pipeline analyses) needs the two landscape
-/// cases swapped with respect to UIKit's; a preview layer, which mirrors the front camera
-/// itself, takes them as they are.
+/// The front camera's picture is mirrored, both in the video data output the presence pipeline
+/// analyses and in a preview layer, so the two landscape cases are swapped with respect to
+/// UIKit's.
 nonisolated enum CameraRotation {
-    static func apply(_ orientation: UIInterfaceOrientation, to connection: AVCaptureConnection, mirrored: Bool) {
+    static func apply(_ orientation: UIInterfaceOrientation, to connection: AVCaptureConnection) {
         if #available(iOS 17.0, *) {
-            let angle = angle(for: orientation, mirrored: mirrored)
+            let angle = angle(for: orientation)
             if connection.isVideoRotationAngleSupported(angle) {
                 connection.videoRotationAngle = angle
             }
         } else if connection.isVideoOrientationSupported {
-            connection.videoOrientation = videoOrientation(for: orientation, mirrored: mirrored)
+            connection.videoOrientation = videoOrientation(for: orientation)
         }
     }
 
-    private static func angle(for orientation: UIInterfaceOrientation, mirrored: Bool) -> CGFloat {
+    private static func angle(for orientation: UIInterfaceOrientation) -> CGFloat {
         switch orientation {
         case .portrait:           return 90
         case .portraitUpsideDown: return 270
-        case .landscapeRight:     return mirrored ? 180 : 0
-        case .landscapeLeft:      return mirrored ? 0 : 180
+        case .landscapeRight:     return 180
+        case .landscapeLeft:      return 0
         default:                  return 90
         }
     }
 
-    private static func videoOrientation(for orientation: UIInterfaceOrientation, mirrored: Bool) -> AVCaptureVideoOrientation {
+    private static func videoOrientation(for orientation: UIInterfaceOrientation) -> AVCaptureVideoOrientation {
         switch orientation {
         case .portrait:           return .portrait
         case .portraitUpsideDown: return .portraitUpsideDown
-        case .landscapeRight:     return mirrored ? .landscapeLeft : .landscapeRight
-        case .landscapeLeft:      return mirrored ? .landscapeRight : .landscapeLeft
+        case .landscapeRight:     return .landscapeLeft
+        case .landscapeLeft:      return .landscapeRight
         default:                  return .portrait
         }
     }

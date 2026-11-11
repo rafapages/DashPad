@@ -141,17 +141,19 @@ The steps are a derived list rather than a count, because two are conditional:
 
 | Step | Shown when | Stage |
 | --- | --- | --- |
-| Welcome | Always | Clock and dashboard crossfading |
-| Presence | Always | `dashpad_v2.mov` on a loop (`LoopingVideoView`) |
+| Welcome | Always | A stand-in dashboard whose tiles switch on and off |
+| Presence | Always | `dashpad_v2.mov` on a loop, filling the stage (`LoopingVideoView`) |
 | Presence try-out | First run, camera allowed, Automatic mode | Live camera preview (`PresenceTryOut.swift`) |
 | Dashboard | Always | Preview of the chosen option |
 | Idle screen | Always | The real `ClockFaceView`, the first chosen photo, black, or a stand-in page |
 | PIN lock | Always | A sketch of the PIN pad |
-| Home Assistant link | The dashboard choice was "I have Home Assistant at home" | The iPad as a Home Assistant device |
+| Home Assistant link | The dashboard choice was "I have Home Assistant at home" | The iPad connected to Home Assistant, and two automation ideas |
 | Getting back to Settings | Always | Triple-tap corner and the pull tab |
 
 The try-out runs its own continuous `AVCaptureSession` (`TryOutCamera`), separate from
-`PresenceDetector`, and is the only place the app displays the camera image. It is skipped on a
+`PresenceDetector`, and is the only place the app displays the camera image. `OnboardingView`
+starts and stops it as the step changes, not the stage view, which is rebuilt when the iPad
+rotates. It is skipped on a
 re-run, where the real presence pipeline is already sampling and two sessions would compete for
 the camera. The Home Assistant step only writes `homeAssistantLinkEnabled`; on a first run
 `HomeAssistantLink` starts after the cover closes, so the Local Network prompt cannot appear over

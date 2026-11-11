@@ -38,8 +38,13 @@ struct DeviceFrame<Content: View>: View {
     }
 }
 
-/// A stand-in dashboard: nine tiles, two of them in the brand colours.
+/// A stand-in dashboard: nine tiles, the lit ones in the brand colours.
 struct MiniDashboard: View {
+    /// Which tiles are "on". Animatable: a tile's colour fades in and out.
+    var lit: Set<Int> = [3, 7]
+    /// A tile drawn slightly smaller, as if a finger were on it.
+    var pressed: Int? = nil
+
     private let columns: [CGFloat] = [1, 1, 2.1]
     private let rows: [CGFloat] = [0.55, 1, 1]
 
@@ -55,9 +60,13 @@ struct MiniDashboard: View {
                 ForEach(0..<3, id: \.self) { row in
                     HStack(spacing: gap) {
                         ForEach(0..<3, id: \.self) { column in
-                            RoundedRectangle(cornerRadius: geo.size.width * 0.025, style: .continuous)
-                                .fill(fill(row * 3 + column))
+                            let index = row * 3 + column
+                            let tile = RoundedRectangle(cornerRadius: geo.size.width * 0.025, style: .continuous)
+                            tile
+                                .fill(Color.white.opacity(0.12))
+                                .overlay(tile.fill(litFill(index)).opacity(lit.contains(index) ? 1 : 0))
                                 .frame(width: widths[column], height: heights[row])
+                                .scaleEffect(pressed == index ? 0.9 : 1)
                         }
                     }
                 }
@@ -77,13 +86,14 @@ struct MiniDashboard: View {
         return weights.map { max(0, total * $0 / sum) }
     }
 
-    private func fill(_ index: Int) -> AnyShapeStyle {
-        switch index {
-        case 3: AnyShapeStyle(LinearGradient(
+    /// The colour a tile takes when it is on.
+    private func litFill(_ index: Int) -> AnyShapeStyle {
+        switch index % 3 {
+        case 0: AnyShapeStyle(LinearGradient(
             colors: [OnboardingPalette.orange, OnboardingPalette.pink], startPoint: .leading, endPoint: .trailing
         ))
-        case 7: AnyShapeStyle(OnboardingPalette.yellow)
-        default: AnyShapeStyle(Color.white.opacity(0.12))
+        case 1: AnyShapeStyle(OnboardingPalette.yellow)
+        default: AnyShapeStyle(OnboardingPalette.orange)
         }
     }
 }
@@ -153,130 +163,119 @@ private struct StageCaption: View {
 
 // MARK: - Welcome
 
-/// The whole idea in one loop: the room empties and the iPad rests, someone arrives and it wakes.
+/// A dashboard in use: tiles switch on and off as if someone were tapping them. The clock and
+/// the waking are left to the presence step, which is about exactly that.
 struct WelcomeStage: View {
-    @EnvironmentObject private var settings: AppSettings
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var isAwake = false
+    @State private var lit: Set<Int> = [3, 7]
+    @State private var pressed: Int?
 
     var body: some View {
-        VStack(spacing: 28) {
-            DeviceFrame {
-                ZStack {
-                    ClockFaceView(style: .digital, date: ClockFaceView.sampleDate, appearance: settings.clockAppearance)
-                    if isAwake {
-                        MiniDashboard().transition(.opacity)
+        DeviceFrame { MiniDashboard(lit: lit, pressed: pressed) }
+            .frame(maxWidth: 520)
+            .task {
+                guard !reduceMotion else { return }
+                var last: Int?
+                while !Task.isCancelled {
+                    try? await Task.sleep(nanoseconds: 1_100_000_000)
+                    let tile = nextTile(avoiding: last)
+                    last = tile
+                    withAnimation(.easeOut(duration: 0.12)) { pressed = tile }
+                    try? await Task.sleep(nanoseconds: 140_000_000)
+                    withAnimation(.spring(response: 0.4, dampingFraction: 0.6)) {
+                        pressed = nil
+                        if lit.contains(tile) { lit.remove(tile) } else { lit.insert(tile) }
                     }
                 }
             }
-            .frame(maxWidth: 520)
+    }
 
-            if isAwake {
-                StagePill("Someone's here. Awake.", dot: .green)
-            } else {
-                StagePill("Room empty. Resting.", dot: .gray)
-            }
-        }
-        .task {
-            guard !reduceMotion else { return }
-            while !Task.isCancelled {
-                try? await Task.sleep(nanoseconds: 3_500_000_000)
-                withAnimation(.easeInOut(duration: 0.8)) { isAwake.toggle() }
-            }
-        }
+    /// Keeps between two and four tiles lit, so the dashboard never looks dead or gaudy.
+    private func nextTile(avoiding last: Int?) -> Int {
+        let all = Set(0..<9)
+        let pool: Set<Int> = lit.count <= 2 ? all.subtracting(lit) : lit.count >= 4 ? lit : all
+        return pool.filter { $0 != last }.randomElement() ?? 0
     }
 }
 
 // MARK: - Presence
 
+/// The clip fills the whole stage, cropped where the stage is not 16:9.
 struct PresenceStage: View {
-    /// Portrait: less room, so the explanation strip is dropped.
-    let isCompact: Bool
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private static let videoURL = Bundle.main.url(forResource: "dashpad_v2", withExtension: "mov")
-    private static let steps = ["A quick glance", "On-device check", "Show or rest", "The frame is gone"]
+    /// With a clip the stage drops its padding, so the picture runs edge to edge.
+    static var hasVideo: Bool { videoURL != nil }
 
     var body: some View {
-        VStack(spacing: 24) {
-            Group {
-                if let url = Self.videoURL {
-                    Color.black
-                        .aspectRatio(16.0 / 9.0, contentMode: .fit)
-                        .overlay(LoopingVideoView(url: url, autoplays: !reduceMotion))
-                        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                                .strokeBorder(Color.white.opacity(0.14), lineWidth: 1)
-                        )
-                        .shadow(color: .black.opacity(0.55), radius: 30, x: 0, y: 24)
-                        .accessibilityLabel("Video: the dashboard waking as someone walks up to the iPad")
-                } else {
-                    DeviceFrame { MiniDashboard() }.frame(maxWidth: 520)
-                }
-            }
-
-            if !isCompact {
-                HStack(alignment: .top, spacing: 0) {
-                    ForEach(Array(Self.steps.enumerated()), id: \.offset) { index, step in
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text(String(format: "%02d", index + 1))
-                                .font(.system(size: 12, weight: .semibold, design: .monospaced))
-                                .foregroundStyle(OnboardingPalette.orange)
-                            Text(step)
-                                .font(.footnote.weight(.medium))
-                                .fixedSize(horizontal: false, vertical: true)
-                        }
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 14)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                }
-                .background(Color.black.opacity(0.4), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-            }
+        if let url = Self.videoURL {
+            LoopingVideoView(url: url, autoplays: !reduceMotion)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .accessibilityLabel("Video: the dashboard waking as someone walks up to the iPad")
+        } else {
+            DeviceFrame { MiniDashboard() }.frame(maxWidth: 520)
         }
     }
 }
 
 // MARK: - Presence try-out
 
+/// The camera itself is started and stopped by `OnboardingView` as the step comes and goes.
+/// Doing it from this view's appearance would restart the session on every rotation, when the
+/// stage is rebuilt for the other layout.
 struct PresenceTryOutStage: View {
     @ObservedObject var model: PresenceTryOutModel
+    /// Portrait: the stage is wide and short, so the camera and the iPad sit side by side.
+    let isCompact: Bool
     @EnvironmentObject private var settings: AppSettings
 
     var body: some View {
-        VStack(spacing: 20) {
-            preview
+        if isCompact {
             HStack(spacing: 20) {
-                DeviceFrame(cornerRadius: 18, bezel: 7) {
-                    ZStack {
-                        ClockFaceView(style: .digital, date: ClockFaceView.sampleDate, appearance: settings.clockAppearance)
-                        if model.personPresent {
-                            MiniDashboard().transition(.opacity)
-                        }
-                    }
+                preview
+                VStack(alignment: .leading, spacing: 14) {
+                    device
+                    status
                 }
-                .frame(width: 210)
-
-                VStack(alignment: .leading, spacing: 5) {
-                    OnboardingEyebrow(text: "Your iPad right now")
-                    Text(model.personPresent ? "Awake" : "Resting")
-                        .font(.title2.weight(.bold))
-                    Text(model.personPresent
-                         ? "Showing your dashboard while you are here."
-                         : "Showing the idle screen until someone comes back.")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
+                .frame(width: 220)
+            }
+        } else {
+            VStack(spacing: 20) {
+                preview
+                HStack(spacing: 20) {
+                    device.frame(width: 210)
+                    status
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .accessibilityElement(children: .combine)
             }
         }
-        .onAppear {
-            model.start(detectionMode: settings.detectionMode, darkLuminanceThreshold: settings.darkLuminanceThreshold)
+    }
+
+    private var device: some View {
+        DeviceFrame(cornerRadius: 18, bezel: 7) {
+            ZStack {
+                ClockFaceView(style: .digital, date: ClockFaceView.sampleDate, appearance: settings.clockAppearance)
+                if model.personPresent {
+                    MiniDashboard().transition(.opacity)
+                }
+            }
         }
-        .onDisappear { model.stop() }
+    }
+
+    private var status: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            OnboardingEyebrow(text: "Your iPad right now")
+            Text(model.personPresent ? "Awake" : "Resting")
+                .font(.title2.weight(.bold))
+            Text(model.personPresent
+                 ? "Showing your dashboard while you are here."
+                 : "Showing the idle screen until someone comes back.")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
     }
 
     private var preview: some View {
@@ -521,15 +520,14 @@ struct PinStage: View {
 struct HomeAssistantStage: View {
     let isOn: Bool
     let deviceName: String
-    /// Portrait: only the device card fits.
+    /// Portrait: only the connection fits.
     let isCompact: Bool
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var dashPhase: CGFloat = 0
 
     var body: some View {
-        VStack(spacing: 22) {
-            if !isCompact { connection }
-            deviceCard
+        VStack(spacing: 44) {
+            connection
             if !isCompact { ideas }
         }
         .frame(maxWidth: 560)
@@ -539,8 +537,10 @@ struct HomeAssistantStage: View {
         HStack(spacing: 14) {
             VStack(spacing: 8) {
                 DeviceFrame(cornerRadius: 14, bezel: 5) { MiniDashboard() }
-                    .frame(width: 150)
-                Text("This iPad").font(.footnote.weight(.semibold))
+                    .frame(width: 170)
+                Text(deviceName.isEmpty ? "This iPad" : deviceName)
+                    .font(.footnote.weight(.semibold))
+                    .lineLimit(1)
             }
 
             VStack(spacing: 10) {
@@ -579,85 +579,6 @@ struct HomeAssistantStage: View {
         }
         dashPhase = 0
         withAnimation(.linear(duration: 1.1).repeatForever(autoreverses: false)) { dashPhase = -26 }
-    }
-
-    private var deviceCard: some View {
-        VStack(spacing: 0) {
-            HStack {
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(deviceName.isEmpty ? "DashPad" : deviceName).font(.headline)
-                    Text("ESPHome · DashPad").font(.footnote).foregroundStyle(.secondary)
-                }
-                Spacer()
-                Text(isOn ? "Ready to discover" : "Preview")
-                    .font(.footnote.weight(.semibold))
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(Color.white.opacity(0.1), in: Capsule())
-            }
-            .padding(.horizontal, 18)
-            .padding(.vertical, 14)
-
-            entityRow("Presence") {
-                HStack(spacing: 8) {
-                    StatusDot(color: .green)
-                    Text("Detected").fontWeight(.semibold)
-                }
-            }
-            entityRow("Display") {
-                Text("dashboard").font(.system(.footnote, design: .monospaced))
-            }
-            entityRow("Mode") {
-                HStack(spacing: 2) {
-                    ForEach(["Auto", "Dashboard", "Idle", "Night"], id: \.self) { mode in
-                        Text(mode)
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(mode == "Auto" ? OnboardingPalette.ink : Color.primary)
-                            .padding(.horizontal, 9)
-                            .padding(.vertical, 5)
-                            .background(
-                                mode == "Auto" ? OnboardingPalette.orange : Color.clear,
-                                in: RoundedRectangle(cornerRadius: 7, style: .continuous)
-                            )
-                    }
-                }
-                .padding(3)
-                .background(Color.secondary.opacity(0.24), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-            }
-            entityRow("Room Brightness · Battery · Charging") {
-                Text("Sensors").font(.footnote).foregroundStyle(.secondary)
-            }
-            entityRow("Reload Dashboard") {
-                Text("Press")
-                    .font(.footnote.weight(.semibold))
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 6)
-                    .background(Color.secondary.opacity(0.3), in: Capsule())
-            }
-        }
-        .background(Color(hex: "#1C1C1E"), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .strokeBorder(Color.white.opacity(0.08), lineWidth: 1)
-        )
-        .shadow(color: .black.opacity(0.5), radius: 30, x: 0, y: 24)
-        .opacity(isOn ? 1 : 0.55)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Preview of this iPad as a device in Home Assistant, with presence, display, mode, sensors and a reload button")
-    }
-
-    private func entityRow<Value: View>(_ name: String, @ViewBuilder value: () -> Value) -> some View {
-        VStack(spacing: 0) {
-            Divider()
-            HStack {
-                Text(name)
-                Spacer(minLength: 12)
-                value()
-            }
-            .font(.subheadline)
-            .padding(.horizontal, 18)
-            .padding(.vertical, 10)
-        }
     }
 
     private var ideas: some View {
