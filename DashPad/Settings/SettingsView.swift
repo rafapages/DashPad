@@ -260,7 +260,7 @@ struct SettingsView: View {
                 .padding(.trailing, 16)
                 .padding(.vertical, 11)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(SidebarFooterButtonStyle())
     }
 
     // MARK: - Detail router
@@ -1250,6 +1250,23 @@ private struct CodeEditorView: View {
             .padding(.horizontal, 4)
             .navigationTitle(title)
             .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+// MARK: - Sidebar footer button
+
+/// Highlights the row while it is touched, like the category rows above it. `.plain` only dims
+/// the label slightly, which is easy to miss.
+private struct SidebarFooterButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .background(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(Color.primary.opacity(configuration.isPressed ? 0.14 : 0))
+                    .padding(.horizontal, 14)
+            )
+            .contentShape(Rectangle())
+            .animation(.easeOut(duration: configuration.isPressed ? 0.04 : 0.3), value: configuration.isPressed)
     }
 }
 

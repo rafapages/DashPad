@@ -11,6 +11,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   iPad beside the choices: a short video of the dashboard waking as someone walks up, a preview of
   the dashboard you pick, the chosen clock face drawn live, the PIN pad, and where to triple-tap
   or pull the tab to get back to Settings. Works in landscape and portrait.
+- Pull tab: a tap on the tab now opens and closes it, the tab lights up and grows the moment it
+  is touched, and a half-finished pull springs back instead of jumping. The open panel can be
+  pushed back off the edge. Its buttons highlight when pressed, Refresh spins, and zooming shows
+  the new zoom level for a moment.
+- Settings: "Leave us a Review" and "Setup assistant" highlight while pressed.
 - Setup: the presence step now offers "Keep it always on" beside "Use the camera", so the
   dashboard can be left on all day without going through the camera prompt.
 - Setup: after allowing the camera on a first run, a live try-out shows the camera picture and
